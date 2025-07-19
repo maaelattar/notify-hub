@@ -7,6 +7,7 @@ export interface NotificationConfig {
   maxPageSize: number;
   recentFailuresWindowMinutes: number;
   pendingNotificationsBatchSize: number;
+  maxRecentFailuresDisplay: number;
 }
 
 interface ValidatedNotificationEnv {
@@ -15,6 +16,7 @@ interface ValidatedNotificationEnv {
   NOTIFICATION_MAX_PAGE_SIZE: number;
   NOTIFICATION_RECENT_FAILURES_WINDOW_MINUTES: number;
   NOTIFICATION_PENDING_BATCH_SIZE: number;
+  NOTIFICATION_MAX_RECENT_FAILURES_DISPLAY: number;
 }
 
 const notificationConfigSchema = Joi.object({
@@ -39,6 +41,11 @@ const notificationConfigSchema = Joi.object({
     .min(1)
     .max(1000)
     .default(100),
+  NOTIFICATION_MAX_RECENT_FAILURES_DISPLAY: Joi.number()
+    .integer()
+    .min(1)
+    .max(50)
+    .default(10),
 });
 
 export const notificationConfig = registerAs('notification', () => {
@@ -50,6 +57,8 @@ export const notificationConfig = registerAs('notification', () => {
       process.env.NOTIFICATION_RECENT_FAILURES_WINDOW_MINUTES,
     NOTIFICATION_PENDING_BATCH_SIZE:
       process.env.NOTIFICATION_PENDING_BATCH_SIZE,
+    NOTIFICATION_MAX_RECENT_FAILURES_DISPLAY:
+      process.env.NOTIFICATION_MAX_RECENT_FAILURES_DISPLAY,
   };
 
   const result = notificationConfigSchema.validate(config, {
@@ -72,6 +81,8 @@ export const notificationConfig = registerAs('notification', () => {
     recentFailuresWindowMinutes:
       validatedEnv.NOTIFICATION_RECENT_FAILURES_WINDOW_MINUTES,
     pendingNotificationsBatchSize: validatedEnv.NOTIFICATION_PENDING_BATCH_SIZE,
+    maxRecentFailuresDisplay:
+      validatedEnv.NOTIFICATION_MAX_RECENT_FAILURES_DISPLAY,
   } as NotificationConfig;
 });
 

@@ -190,9 +190,13 @@ export class NotificationRepository {
     );
   }
 
-  async getRecentFailures(minutes?: number): Promise<Notification[]> {
+  async getRecentFailures(
+    minutes?: number,
+    limit?: number,
+  ): Promise<Notification[]> {
     const windowMinutes =
       minutes || this.notificationConfig.recentFailuresWindowMinutes;
+    const maxLimit = limit || this.notificationConfig.maxRecentFailuresDisplay;
     const since = new Date();
     since.setMinutes(since.getMinutes() - windowMinutes);
 
@@ -202,7 +206,7 @@ export class NotificationRepository {
         updatedAt: MoreThan(since),
       },
       order: { updatedAt: 'DESC' },
-      take: this.notificationConfig.pendingNotificationsBatchSize,
+      take: maxLimit,
     });
   }
 
