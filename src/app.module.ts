@@ -13,13 +13,14 @@ import {
   validateConfig,
   DatabaseConfig,
 } from './config';
+import { notificationConfig } from './modules/notifications/config/notification.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateConfig,
-      load: [appConfig, databaseConfig],
+      load: [appConfig, databaseConfig, notificationConfig],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
