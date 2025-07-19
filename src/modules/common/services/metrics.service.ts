@@ -159,6 +159,47 @@ export class MetricsService {
     }
   }
 
+  recordChannelDelivery(
+    channel: string,
+    success: boolean,
+    duration: number,
+  ): void {
+    try {
+      this.logger.debug(
+        `Channel delivery: ${channel}, success: ${success}, duration: ${duration}ms`,
+      );
+
+      // Record channel stats
+      const channelStats = this.metrics.channelStats.get(channel) || {
+        sent: 0,
+        failed: 0,
+      };
+
+      if (success) {
+        channelStats.sent++;
+      } else {
+        channelStats.failed++;
+      }
+
+      this.metrics.channelStats.set(channel, channelStats);
+
+      // Record processing time if successful
+      if (success) {
+        this.metrics.processingTimes.push(duration);
+        // Keep only last 1000 processing times to avoid memory issues
+        if (this.metrics.processingTimes.length > 1000) {
+          this.metrics.processingTimes =
+            this.metrics.processingTimes.slice(-1000);
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        'Failed to record channel delivery metric',
+        error instanceof Error ? error.stack : error,
+      );
+    }
+  }
+
   resetMetrics(): void {
     try {
       this.metrics.sent.clear();

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .message {
+      padding: 15px;
+      background-color: #f4f4f4;
+      border-left: 4px solid #007bff;
+      margin: 15px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>{{#if subject}}{{subject}}{{else}}New Notification{{/if}}</h2>
+    
+    <div class="message">
+      {{{content}}}
+    </div>
+    
+    {{#if metadata}}
+    <div style="margin-top: 20px; font-size: 14px; color: #666;">
+      {{#each metadata}}
+        {{#unless (ifEquals @key "template")}}
+        <p><strong>{{@key}}:</strong> {{this}}</p>
+        {{/unless}}
+      {{/each}}
+    </div>
+    {{/if}}
+    
+    <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+    
+    <p style="font-size: 12px; color: #999; text-align: center;">
+      Sent by NotifyHub at {{formatDate timestamp}}
+    </p>
+  </div>
+</body>
+</html>

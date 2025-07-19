@@ -13,10 +13,8 @@ import { NotificationStatus } from '../enums/notification-status.enum';
 import { Notification } from '../entities/notification.entity';
 import { NotificationConfig } from '../config/notification.config';
 import { NotificationJobData } from '../services/notification.producer';
-import {
-  ChannelRouter,
-  ChannelResult,
-} from '../../channels/services/channel-router.service';
+import { ChannelRouter } from '../../channels/services/channel-router.service';
+import { ChannelResult } from '../../channels/interfaces/channel.interface';
 import { MetricsService } from '../../common/services/metrics.service';
 
 @Processor('notifications')
@@ -92,8 +90,14 @@ export class NotificationProcessor {
           sentAt: new Date(),
           metadata: {
             ...notification.metadata,
-            channelMessageId: result.messageId,
+            delivery: {
+              messageId: result.messageId,
+              channel: result.channel,
+              deliveredAt: result.deliveredAt,
+              details: result.details,
+            } as any,
             processingTime: Date.now() - startTime,
+            attempts: attempt,
           },
         });
 
@@ -111,6 +115,7 @@ export class NotificationProcessor {
         return {
           success: true,
           messageId: result.messageId,
+          channel: result.channel,
           processingTime: Date.now() - startTime,
         };
       } else {

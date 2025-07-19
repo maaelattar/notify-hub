@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{subject}}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background-color: #007bff;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      border-radius: 5px 5px 0 0;
+    }
+    .content {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border: 1px solid #dee2e6;
+      border-top: none;
+      border-radius: 0 0 5px 5px;
+    }
+    .footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #6c757d;
+    }
+    .button {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>{{#if title}}{{title}}{{else}}NotifyHub{{/if}}</h1>
+  </div>
+  
+  <div class="content">
+    {{{content}}}
+    
+    {{#if actionUrl}}
+    <p style="text-align: center;">
+      <a href="{{actionUrl}}" class="button">{{#if actionText}}{{actionText}}{{else}}Take Action{{/if}}</a>
+    </p>
+    {{/if}}
+  </div>
+  
+  <div class="footer">
+    <p>This email was sent by NotifyHub</p>
+    <p>
+      {{#if unsubscribeUrl}}
+      <a href="{{unsubscribeUrl}}">Unsubscribe</a> | 
+      {{/if}}
+      <a href="https://notifyhub.com">Visit our website</a>
+    </p>
+    <p style="font-size: 10px; color: #999;">
+      Notification ID: {{notificationId}}
+    </p>
+  </div>
+</body>
+</html>
