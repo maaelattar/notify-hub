@@ -5,8 +5,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
 import { DataSource } from 'typeorm';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
@@ -16,11 +14,9 @@ import { NotificationFilterDto } from '../dto/notification-filter.dto';
 import { PaginatedResponseDto } from '../dto/paginated-response.dto';
 import { Notification } from '../entities/notification.entity';
 import { NotificationStatus } from '../enums/notification-status.enum';
+import { NotificationPriority } from '../enums/notification-priority.enum';
 import { NotificationConfig } from '../config/notification.config';
-
-interface NotificationJobData {
-  notificationId: string;
-}
+import { NotificationProducer } from './notification.producer';
 
 @Injectable()
 export class NotificationService {
@@ -29,8 +25,7 @@ export class NotificationService {
 
   constructor(
     private readonly notificationRepository: NotificationRepository,
-    @InjectQueue('notifications')
-    private readonly notificationQueue: Queue<NotificationJobData>,
+    private readonly notificationProducer: NotificationProducer,
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
   ) {
@@ -73,9 +68,19 @@ export class NotificationService {
         status: NotificationStatus.CREATED,
       });
 
-      // Queue for processing
-      const delay = this.calculateDelay(notification.scheduledFor);
-      await this.queueNotification(notification.id, delay);
+      // Queue for processing with normal priority by default
+      await this.notificationProducer.addNotificationJob(
+        notification.id,
+        NotificationPriority.NORMAL,
+        notification.scheduledFor || undefined,
+        notification.metadata,
+      );
+
+      // Update status to queued
+      await this.notificationRepository.updateStatus(
+        notification.id,
+        NotificationStatus.QUEUED,
+      );
 
       this.logger.log(`Notification ${notification.id} created and queued`);
       return NotificationResponseDto.fromEntity(notification);
@@ -236,15 +241,17 @@ export class NotificationService {
 
       // Remove from queue (outside transaction but after DB commit)
       try {
-        const job = await this.notificationQueue.getJob(id);
-        if (job) {
-          await job.remove();
-          this.logger.debug(`Removed job ${job.id} for notification ${id}`);
+        const removed =
+          await this.notificationProducer.removeNotificationJob(id);
+        if (removed) {
+          this.logger.debug(`Removed job for notification ${id}`);
+        } else {
+          this.logger.debug(`No job found to remove for notification ${id}`);
         }
-      } catch {
+      } catch (error) {
         // Job might not exist or already processed, which is fine
         this.logger.debug(
-          `Could not remove job for notification ${id}: job may not exist`,
+          `Could not remove job for notification ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
         );
       }
 
@@ -264,7 +271,7 @@ export class NotificationService {
       });
     }
 
-    if (!notification.canRetry()) {
+    if (!notification.canRetry(this.config.maxRetries)) {
       this.logger.warn(
         `Attempted to retry notification that cannot be retried`,
         {
@@ -290,7 +297,20 @@ export class NotificationService {
     await this.notificationRepository.update(id, {
       status: notification.status,
     });
-    await this.queueNotification(id, 0);
+
+    // Queue with high priority for retries
+    await this.notificationProducer.addNotificationJob(
+      id,
+      NotificationPriority.HIGH,
+      undefined, // No delay for retries
+      { retryAttempt: true },
+    );
+
+    // Update status to queued
+    await this.notificationRepository.updateStatus(
+      id,
+      NotificationStatus.QUEUED,
+    );
 
     this.logger.log(`Notification ${id} queued for retry`);
     return NotificationResponseDto.fromEntity(notification);
@@ -325,29 +345,29 @@ export class NotificationService {
   }
 
   // Internal methods
-  private async queueNotification(
+  private async requeueNotification(
     notificationId: string,
-    delay: number,
+    scheduledFor: Date | null,
   ): Promise<void> {
-    // Use notification ID as job ID for easy lookup
-    const job = await this.notificationQueue.add(
-      'process-notification',
-      { notificationId },
-      {
-        jobId: notificationId, // Use notification ID as job ID
-        delay,
-        attempts: this.config.maxRetries,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
-        },
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
-    );
+    // Remove existing job
+    try {
+      await this.notificationProducer.removeNotificationJob(notificationId);
+      this.logger.debug(
+        `Removed existing job for notification ${notificationId}`,
+      );
+    } catch (error) {
+      // Job might not exist, which is fine
+      this.logger.debug(
+        `No existing job found for notification ${notificationId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
 
-    this.logger.debug(
-      `Job ${job.id} created for notification ${notificationId}`,
+    // Add new job with updated schedule
+    await this.notificationProducer.addNotificationJob(
+      notificationId,
+      NotificationPriority.NORMAL,
+      scheduledFor || undefined,
+      { rescheduled: true },
     );
 
     // Update status to queued
@@ -355,39 +375,5 @@ export class NotificationService {
       notificationId,
       NotificationStatus.QUEUED,
     );
-  }
-
-  private async requeueNotification(
-    notificationId: string,
-    scheduledFor: Date | null,
-  ): Promise<void> {
-    // Remove existing job using job ID
-    try {
-      const existingJob = await this.notificationQueue.getJob(notificationId);
-      if (existingJob) {
-        await existingJob.remove();
-        this.logger.debug(
-          `Removed existing job for notification ${notificationId}`,
-        );
-      }
-    } catch {
-      // Job might not exist, which is fine
-      this.logger.debug(
-        `No existing job found for notification ${notificationId}`,
-      );
-    }
-
-    // Add new job with updated delay
-    const delay = this.calculateDelay(scheduledFor);
-    await this.queueNotification(notificationId, delay);
-  }
-
-  private calculateDelay(scheduledFor: Date | null): number {
-    if (!scheduledFor) {
-      return 0;
-    }
-
-    const delay = scheduledFor.getTime() - Date.now();
-    return delay > 0 ? delay : 0;
   }
 }

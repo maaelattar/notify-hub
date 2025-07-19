@@ -39,11 +39,36 @@ import { notificationConfig } from './modules/notifications/config/notification.
         };
       },
     }),
-    BullModule.forRoot({
-      redis: {
-        host: 'localhost',
-        port: 6379,
-      },
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        redis: {
+          host: configService.get('REDIS_HOST', 'localhost'),
+          port: configService.get('REDIS_PORT', 6379),
+          password: configService.get('REDIS_PASSWORD'),
+          retryStrategy: (times: number) => {
+            // Retry connection every 3 seconds, up to 10 times
+            if (times > 10) {
+              throw new Error('Redis connection failed after 10 retries');
+            }
+            return Math.min(times * 3000, 30000);
+          },
+          maxRetriesPerRequest: 3,
+        },
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000, // 2 seconds, then 4, then 8
+          },
+          removeOnComplete: {
+            age: 3600, // Keep completed jobs for 1 hour
+            count: 100, // Keep last 100 completed jobs
+          },
+          removeOnFail: false, // Keep failed jobs for debugging
+          timeout: 30000, // 30 seconds timeout
+        },
+      }),
     }),
     SharedModule,
     NotificationsModule,

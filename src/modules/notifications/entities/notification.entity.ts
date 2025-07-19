@@ -64,8 +64,10 @@ export class Notification {
   updatedAt: Date;
 
   // Helper methods for business logic
-  canRetry(): boolean {
-    return this.status === NotificationStatus.FAILED && this.retryCount < 3;
+  canRetry(maxRetries: number = 3): boolean {
+    return (
+      this.status === NotificationStatus.FAILED && this.retryCount < maxRetries
+    );
   }
 
   markAsQueued(): void {

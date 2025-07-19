@@ -1,12 +1,23 @@
-import { Process, Processor } from '@nestjs/bull';
+import {
+  Process,
+  Processor,
+  OnQueueActive,
+  OnQueueCompleted,
+  OnQueueFailed,
+} from '@nestjs/bull';
 import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationStatus } from '../enums/notification-status.enum';
-import { NotificationChannel } from '../enums/notification-channel.enum';
 import { Notification } from '../entities/notification.entity';
 import { NotificationConfig } from '../config/notification.config';
+import { NotificationJobData } from '../services/notification.producer';
+import {
+  ChannelRouter,
+  ChannelResult,
+} from '../../channels/services/channel-router.service';
+import { MetricsService } from '../../common/services/metrics.service';
 
 @Processor('notifications')
 export class NotificationProcessor {
@@ -16,12 +27,17 @@ export class NotificationProcessor {
   constructor(
     private readonly notificationRepository: NotificationRepository,
     private readonly configService: ConfigService,
+    private readonly channelRouter: ChannelRouter,
+    private readonly metricsService: MetricsService,
   ) {
     this.config = this.configService.get<NotificationConfig>('notification')!;
   }
 
   @Process('process-notification')
-  async handleNotification(job: Job<{ notificationId: string }>) {
+  async handleNotification(job: Job<NotificationJobData>) {
+    const startTime = Date.now();
+    const { notificationId, priority, attempt = 1 } = job.data;
+
     // Validate job data
     if (!this.validateJobData(job.data)) {
       const error = new Error(
@@ -33,155 +49,166 @@ export class NotificationProcessor {
       throw error;
     }
 
-    const { notificationId } = job.data;
-    this.logger.log(`Processing notification ${notificationId}`);
+    this.logger.log(
+      `Processing notification ${notificationId} (Job ${job.id}, Attempt ${attempt}/${job.opts.attempts})`,
+    );
 
     let notification: Notification | null = null;
 
     try {
-      // Get notification and update to processing
+      // 1. Fetch notification
       notification = await this.notificationRepository.findById(notificationId);
+
       if (!notification) {
-        const error = new Error(
-          `Notification not found during queue processing: ${notificationId}`,
-        );
-        this.logger.error('Queue processing failed: notification not found', {
-          notificationId,
-          jobId: job.id,
-        });
-        throw error;
+        throw new Error(`Notification ${notificationId} not found`);
       }
 
+      // 2. Check if already processed
+      if (
+        notification.status === NotificationStatus.SENT ||
+        notification.status === NotificationStatus.DELIVERED
+      ) {
+        this.logger.warn(`Notification ${notificationId} already processed`);
+        return { success: true, alreadyProcessed: true };
+      }
+
+      // 3. Update status to processing
       await this.notificationRepository.updateStatus(
         notificationId,
         NotificationStatus.PROCESSING,
       );
 
-      // Send the notification
-      await this.sendNotification(notification);
-
-      // Mark as sent
-      await this.notificationRepository.updateStatus(
-        notificationId,
-        NotificationStatus.SENT,
+      // 4. Route to appropriate channel
+      this.logger.log(
+        `Routing ${notificationId} to ${notification.channel} channel`,
       );
+      const result: ChannelResult =
+        await this.channelRouter.route(notification);
 
-      this.logger.log(`Successfully sent notification ${notificationId}`);
+      // 5. Update status based on result
+      if (result.success) {
+        await this.notificationRepository.update(notificationId, {
+          status: NotificationStatus.SENT,
+          sentAt: new Date(),
+          metadata: {
+            ...notification.metadata,
+            channelMessageId: result.messageId,
+            processingTime: Date.now() - startTime,
+          },
+        });
+
+        this.logger.log(
+          `Successfully sent notification ${notificationId} via ${notification.channel}`,
+        );
+
+        // Track metrics
+        this.metricsService.recordNotificationSent(
+          notification.channel,
+          priority,
+          Date.now() - startTime,
+        );
+
+        return {
+          success: true,
+          messageId: result.messageId,
+          processingTime: Date.now() - startTime,
+        };
+      } else {
+        throw new Error(result.error || 'Channel delivery failed');
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('Failed to process notification', {
-        notificationId,
-        jobId: job.id,
-        attempt: job.attemptsMade + 1,
-        maxAttempts: job.opts.attempts,
-        error: errorMessage,
-        channel: notification?.channel,
-        recipient: notification?.recipient,
-      });
+      this.logger.error(
+        `Failed to process notification ${notificationId}`,
+        error instanceof Error ? error.stack : error,
+      );
 
+      // Update notification with error
       if (notification) {
-        // Check if we can retry
-        const canRetry = notification.retryCount < this.config.maxRetries - 1;
-
-        if (canRetry) {
-          // Update retry count and error, but let Bull handle the retry
-          await this.notificationRepository.update(notificationId, {
-            retryCount: notification.retryCount + 1,
-            lastError: errorMessage,
-          });
-
-          this.logger.warn('Notification will be retried', {
-            notificationId,
-            currentAttempt: notification.retryCount + 2,
-            maxAttempts: this.config.maxRetries,
-            channel: notification.channel,
-            nextRetryDelay: job.opts.backoff,
-          });
-        } else {
-          // Mark as permanently failed
-          await this.notificationRepository.update(notificationId, {
-            status: NotificationStatus.FAILED,
-            lastError: errorMessage,
-            retryCount: notification.retryCount + 1,
-          });
-
-          this.logger.error('Notification permanently failed', {
-            notificationId,
-            totalAttempts: this.config.maxRetries,
-            channel: notification.channel,
-            recipient: notification.recipient,
-            finalError: errorMessage,
-          });
-        }
+        await this.notificationRepository.update(notificationId, {
+          lastError: errorMessage,
+          retryCount: attempt,
+        });
       }
 
-      throw error; // Re-throw to trigger Bull retry mechanism
-    }
-  }
+      // Check if this is the last attempt
+      if (attempt >= (job.opts.attempts || 3)) {
+        if (notification) {
+          await this.notificationRepository.updateStatus(
+            notificationId,
+            NotificationStatus.FAILED,
+          );
+        }
 
-  private async sendNotification(notification: Notification): Promise<void> {
-    // Simulate different processing times and failure rates by channel
-    const delay = Math.random() * 1000 + 500; // 0.5-1.5 seconds
-    await new Promise((resolve) => setTimeout(resolve, delay));
-
-    // Simulate occasional failures for testing
-    if (Math.random() < 0.1) {
-      // 10% failure rate
-      throw new Error(`Simulated ${notification.channel} delivery failure`);
-    }
-
-    switch (notification.channel) {
-      case NotificationChannel.EMAIL:
-        this.sendEmail(notification);
-        break;
-      case NotificationChannel.SMS:
-        this.sendSMS(notification);
-        break;
-      case NotificationChannel.PUSH:
-        this.sendPushNotification(notification);
-        break;
-      case NotificationChannel.WEBHOOK:
-        this.sendWebhook(notification);
-        break;
-      default:
-        throw new Error(
-          `Unsupported notification channel: ${String(notification.channel)}`,
+        // Track failed metric
+        this.metricsService.recordNotificationFailed(
+          priority,
+          errorMessage,
+          notification?.channel,
         );
+      }
+
+      // Re-throw to trigger Bull's retry mechanism
+      throw error;
     }
   }
 
-  private sendEmail(notification: Notification): void {
-    // TODO: Integrate with email service (SendGrid, SES, etc.)
+  /**
+   * Job lifecycle hooks for monitoring
+   */
+  @OnQueueActive()
+  onActive(job: Job<NotificationJobData>) {
+    this.logger.debug(`Job ${job.id} started: ${job.data.notificationId}`);
+  }
+
+  @OnQueueCompleted()
+  onComplete(
+    job: Job<NotificationJobData>,
+    result: { processingTime?: number },
+  ) {
     this.logger.log(
-      `[EMAIL] Sending to ${notification.recipient}: ${notification.subject}`,
+      `Job ${job.id} completed: ${job.data.notificationId} ${result.processingTime ? `in ${result.processingTime}ms` : ''}`,
     );
-    // Placeholder - would integrate with actual email service
   }
 
-  private sendSMS(notification: Notification): void {
-    // TODO: Integrate with SMS service (Twilio, AWS SNS, etc.)
-    this.logger.log(
-      `[SMS] Sending to ${notification.recipient}: ${notification.content.substring(0, 50)}...`,
+  @OnQueueFailed()
+  onError(job: Job<NotificationJobData>, error: Error) {
+    this.logger.error(
+      `Job ${job.id} failed: ${job.data.notificationId}`,
+      error.stack,
     );
-    // Placeholder - would integrate with actual SMS service
+
+    // Additional error handling
+    void this.handleJobFailure(job, error);
   }
 
-  private sendPushNotification(notification: Notification): void {
-    // TODO: Integrate with push service (FCM, APNS, etc.)
-    this.logger.log(
-      `[PUSH] Sending to ${notification.recipient}: ${notification.content.substring(0, 50)}...`,
-    );
-    // Placeholder - would integrate with actual push service
+  /**
+   * Handle job failures
+   */
+  private handleJobFailure(job: Job<NotificationJobData>, error: Error): void {
+    const { notificationId, attempt = 1 } = job.data;
+
+    // Log to external error tracking (e.g., Sentry)
+    this.logger.error({
+      message: 'Notification processing failed',
+      notificationId,
+      jobId: job.id,
+      attempt,
+      error: error.message,
+      stack: error.stack,
+    });
+
+    // Special handling for specific errors
+    if (error.message.includes('Rate limit')) {
+      // Log rate limit error for manual intervention
+      this.logger.warn(
+        `Job ${job.id} failed due to rate limit - requires manual intervention`,
+      );
+    }
   }
 
-  private sendWebhook(notification: Notification): void {
-    // TODO: Make HTTP request to webhook URL
-    this.logger.log(`[WEBHOOK] Sending to ${notification.recipient}`);
-    // Placeholder - would make actual HTTP request
-  }
-
-  private validateJobData(data: unknown): data is { notificationId: string } {
+  private validateJobData(data: unknown): data is NotificationJobData {
     if (!data || typeof data !== 'object') {
       return false;
     }
@@ -195,6 +222,11 @@ export class NotificationProcessor {
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(jobData.notificationId)) {
+      return false;
+    }
+
+    // Validate priority if present
+    if (jobData.priority && typeof jobData.priority !== 'string') {
       return false;
     }
 

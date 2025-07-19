@@ -5,8 +5,11 @@ import { BullModule } from '@nestjs/bull';
 import { Notification } from './entities/notification.entity';
 import { NotificationRepository } from './repositories/notification.repository';
 import { NotificationService } from './services/notification.service';
+import { NotificationProducer } from './services/notification.producer';
 import { NotificationProcessor } from './processors/notification.processor';
 import { NotificationConfig } from './config/notification.config';
+import { ChannelsModule } from '../channels/channels.module';
+import { SharedModule } from '../shared/shared.module';
 
 @Module({
   imports: [
@@ -23,17 +26,26 @@ import { NotificationConfig } from './config/notification.config';
               type: 'exponential',
               delay: 2000,
             },
+            removeOnComplete: {
+              age: 3600, // Keep completed jobs for 1 hour
+              count: 100, // Keep last 100 completed jobs
+            },
+            removeOnFail: false, // Keep failed jobs for debugging
+            timeout: 30000, // 30 seconds timeout
           },
         };
       },
     }),
+    ChannelsModule, // For ChannelRouter
+    SharedModule, // For MetricsService
   ],
   controllers: [],
   providers: [
     NotificationRepository,
     NotificationService,
+    NotificationProducer,
     NotificationProcessor,
   ],
-  exports: [NotificationService],
+  exports: [NotificationService, NotificationProducer],
 })
 export class NotificationsModule {}
