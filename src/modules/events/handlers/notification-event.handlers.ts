@@ -13,50 +13,75 @@ import { RedisMetricsService } from '../../monitoring/services/redis-metrics.ser
  * Tracks notification events for real-time analytics
  */
 @Injectable()
-export class NotificationAnalyticsHandler implements EventHandler<NotificationCreatedEvent | NotificationSentEvent | NotificationFailedEvent | NotificationDeliveredEvent> {
+export class NotificationAnalyticsHandler
+  implements
+    EventHandler<
+      | NotificationCreatedEvent
+      | NotificationSentEvent
+      | NotificationFailedEvent
+      | NotificationDeliveredEvent
+    >
+{
   readonly eventType = 'NotificationCreated' as const;
   private readonly logger = new Logger(NotificationAnalyticsHandler.name);
 
   constructor(private readonly metricsService: RedisMetricsService) {}
 
-  async handle(event: NotificationCreatedEvent | NotificationSentEvent | NotificationFailedEvent | NotificationDeliveredEvent): Promise<void> {
+  async handle(
+    event:
+      | NotificationCreatedEvent
+      | NotificationSentEvent
+      | NotificationFailedEvent
+      | NotificationDeliveredEvent,
+  ): Promise<void> {
     try {
       switch (event.eventType) {
         case 'NotificationCreated':
-          await this.handleNotificationCreated(event as NotificationCreatedEvent);
+          await this.handleNotificationCreated(event);
           break;
         case 'NotificationSent':
-          await this.handleNotificationSent(event as NotificationSentEvent);
+          await this.handleNotificationSent(event);
           break;
         case 'NotificationFailed':
-          await this.handleNotificationFailed(event as NotificationFailedEvent);
+          await this.handleNotificationFailed(event);
           break;
         case 'NotificationDelivered':
-          await this.handleNotificationDelivered(event as NotificationDeliveredEvent);
+          await this.handleNotificationDelivered(event);
           break;
       }
     } catch (error) {
-      this.logger.error(`Failed to handle notification analytics event: ${event.eventType}`, {
-        eventId: event.eventId,
-        aggregateId: event.aggregateId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error(
+        `Failed to handle notification analytics event: ${event.eventType}`,
+        {
+          eventId: event.eventId,
+          aggregateId: event.aggregateId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+      );
     }
   }
 
-  private async handleNotificationCreated(event: NotificationCreatedEvent): Promise<void> {
+  private async handleNotificationCreated(
+    event: NotificationCreatedEvent,
+  ): Promise<void> {
     const { payload } = event;
-    
+
     // Increment creation metrics
     await Promise.all([
       this.metricsService.incrementCounter('notifications.created.total'),
-      this.metricsService.incrementCounter(`notifications.created.by_channel.${payload.channel}`),
-      this.metricsService.incrementCounter(`notifications.created.by_priority.${payload.priority}`),
+      this.metricsService.incrementCounter(
+        `notifications.created.by_channel.${payload.channel}`,
+      ),
+      this.metricsService.incrementCounter(
+        `notifications.created.by_priority.${payload.priority}`,
+      ),
     ]);
 
     // Track hourly creation rate
     const hourKey = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
-    await this.metricsService.incrementCounter(`notifications.created.hourly.${hourKey}`);
+    await this.metricsService.incrementCounter(
+      `notifications.created.hourly.${hourKey}`,
+    );
 
     this.logger.debug('Recorded notification creation metrics', {
       notificationId: payload.notificationId,
@@ -65,13 +90,17 @@ export class NotificationAnalyticsHandler implements EventHandler<NotificationCr
     });
   }
 
-  private async handleNotificationSent(event: NotificationSentEvent): Promise<void> {
+  private async handleNotificationSent(
+    event: NotificationSentEvent,
+  ): Promise<void> {
     const { payload } = event;
-    
+
     // Increment sent metrics
     await Promise.all([
       this.metricsService.incrementCounter('notifications.sent.total'),
-      this.metricsService.incrementCounter(`notifications.sent.by_channel.${payload.channel}`),
+      this.metricsService.incrementCounter(
+        `notifications.sent.by_channel.${payload.channel}`,
+      ),
     ]);
 
     this.logger.debug('Recorded notification sent metrics', {
@@ -81,21 +110,31 @@ export class NotificationAnalyticsHandler implements EventHandler<NotificationCr
     });
   }
 
-  private async handleNotificationFailed(event: NotificationFailedEvent): Promise<void> {
+  private async handleNotificationFailed(
+    event: NotificationFailedEvent,
+  ): Promise<void> {
     const { payload } = event;
-    
+
     // Increment failure metrics
     await Promise.all([
       this.metricsService.incrementCounter('notifications.failed.total'),
-      this.metricsService.incrementCounter(`notifications.failed.by_channel.${payload.channel}`),
-      this.metricsService.incrementCounter(`notifications.failed.by_error.${payload.error.code}`),
+      this.metricsService.incrementCounter(
+        `notifications.failed.by_channel.${payload.channel}`,
+      ),
+      this.metricsService.incrementCounter(
+        `notifications.failed.by_error.${payload.error.code}`,
+      ),
     ]);
 
     // Track retry metrics
     if (payload.willRetry) {
-      await this.metricsService.incrementCounter('notifications.retries.scheduled');
+      await this.metricsService.incrementCounter(
+        'notifications.retries.scheduled',
+      );
     } else {
-      await this.metricsService.incrementCounter('notifications.retries.exhausted');
+      await this.metricsService.incrementCounter(
+        'notifications.retries.exhausted',
+      );
     }
 
     this.logger.debug('Recorded notification failure metrics', {
@@ -107,13 +146,17 @@ export class NotificationAnalyticsHandler implements EventHandler<NotificationCr
     });
   }
 
-  private async handleNotificationDelivered(event: NotificationDeliveredEvent): Promise<void> {
+  private async handleNotificationDelivered(
+    event: NotificationDeliveredEvent,
+  ): Promise<void> {
     const { payload } = event;
-    
+
     // Increment delivery metrics
     await Promise.all([
       this.metricsService.incrementCounter('notifications.delivered.total'),
-      this.metricsService.incrementCounter(`notifications.delivered.by_channel.${payload.channel}`),
+      this.metricsService.incrementCounter(
+        `notifications.delivered.by_channel.${payload.channel}`,
+      ),
     ]);
 
     this.logger.debug('Recorded notification delivery metrics', {
@@ -154,10 +197,13 @@ export class NotificationAuditHandler implements EventHandler {
       // In production, you might want to store this in a separate audit database
       // await this.auditRepository.save(auditEntry);
     } catch (error) {
-      this.logger.error(`Failed to create audit log for event: ${event.eventType}`, {
-        eventId: event.eventId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error(
+        `Failed to create audit log for event: ${event.eventType}`,
+        {
+          eventId: event.eventId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+      );
     }
   }
 
@@ -173,9 +219,10 @@ export class NotificationAuditHandler implements EventHandler {
 
     if (sanitized.content && typeof sanitized.content === 'string') {
       // Truncate long content for audit logs
-      sanitized.content = sanitized.content.length > 200 
-        ? sanitized.content.substring(0, 200) + '...' 
-        : sanitized.content;
+      sanitized.content =
+        sanitized.content.length > 200
+          ? sanitized.content.substring(0, 200) + '...'
+          : sanitized.content;
     }
 
     return sanitized;
@@ -187,12 +234,12 @@ export class NotificationAuditHandler implements EventHandler {
       const [local, domain] = data.split('@');
       return `${local.charAt(0)}***@${domain}`;
     }
-    
+
     if (data.startsWith('+') || /^\d+$/.test(data)) {
       // Phone masking
       return `${data.substring(0, 3)}***${data.substring(data.length - 2)}`;
     }
-    
+
     // Generic masking
     return data.length > 6 ? `${data.substring(0, 3)}***` : '***';
   }
@@ -230,11 +277,14 @@ export class NotificationCacheHandler implements EventHandler {
         eventType: event.eventType,
       });
     } catch (error) {
-      this.logger.error(`Failed to update notification cache for event: ${event.eventType}`, {
-        eventId: event.eventId,
-        aggregateId: event.aggregateId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error(
+        `Failed to update notification cache for event: ${event.eventType}`,
+        {
+          eventId: event.eventId,
+          aggregateId: event.aggregateId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+      );
     }
   }
 
@@ -266,60 +316,63 @@ export class NotificationCacheHandler implements EventHandler {
  */
 @Injectable()
 export class NotificationWebSocketHandler implements EventHandler {
-    readonly eventType = 'NotificationCreated' as const;
-    private readonly logger = new Logger(NotificationWebSocketHandler.name);
+  readonly eventType = 'NotificationCreated' as const;
+  private readonly logger = new Logger(NotificationWebSocketHandler.name);
 
-    async handle(event: any): Promise<void> {
-      try {
-        // In a real implementation, you would:
-        // 1. Get connected WebSocket clients for the user/organization
-        // 2. Send real-time updates about notification status changes
-        // 3. Filter updates based on user permissions
+  async handle(event: any): Promise<void> {
+    try {
+      // In a real implementation, you would:
+      // 1. Get connected WebSocket clients for the user/organization
+      // 2. Send real-time updates about notification status changes
+      // 3. Filter updates based on user permissions
 
-        const wsUpdate = {
-          type: 'notification_update',
-          eventType: event.eventType,
-          notificationId: event.aggregateId,
-          status: this.extractStatusFromEvent(event),
-          timestamp: event.occurredAt,
-          channel: event.payload?.channel,
-        };
+      const wsUpdate = {
+        type: 'notification_update',
+        eventType: event.eventType,
+        notificationId: event.aggregateId,
+        status: this.extractStatusFromEvent(event),
+        timestamp: event.occurredAt,
+        channel: event.payload?.channel,
+      };
 
-        // Example WebSocket broadcast (would need WebSocket service)
-        // await this.websocketService.broadcast(wsUpdate, event.metadata.userId);
+      // Example WebSocket broadcast (would need WebSocket service)
+      // await this.websocketService.broadcast(wsUpdate, event.metadata.userId);
 
-        this.logger.debug('Prepared WebSocket notification update', {
-          notificationId: event.aggregateId,
-          eventType: event.eventType,
-          userId: event.metadata.userId,
-        });
-      } catch (error) {
-        this.logger.error(`Failed to send WebSocket update for event: ${event.eventType}`, {
+      this.logger.debug('Prepared WebSocket notification update', {
+        notificationId: event.aggregateId,
+        eventType: event.eventType,
+        userId: event.metadata.userId,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to send WebSocket update for event: ${event.eventType}`,
+        {
           eventId: event.eventId,
           aggregateId: event.aggregateId,
           error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    private extractStatusFromEvent(event: any): string {
-      switch (event.eventType) {
-        case 'NotificationCreated':
-          return 'created';
-        case 'NotificationQueued':
-          return 'queued';
-        case 'NotificationSent':
-          return 'sent';
-        case 'NotificationDelivered':
-          return 'delivered';
-        case 'NotificationFailed':
-          return 'failed';
-        case 'NotificationCancelled':
-          return 'cancelled';
-        case 'NotificationRetried':
-          return 'queued';
-        default:
-          return 'unknown';
-      }
+        },
+      );
     }
   }
+
+  private extractStatusFromEvent(event: any): string {
+    switch (event.eventType) {
+      case 'NotificationCreated':
+        return 'created';
+      case 'NotificationQueued':
+        return 'queued';
+      case 'NotificationSent':
+        return 'sent';
+      case 'NotificationDelivered':
+        return 'delivered';
+      case 'NotificationFailed':
+        return 'failed';
+      case 'NotificationCancelled':
+        return 'cancelled';
+      case 'NotificationRetried':
+        return 'queued';
+      default:
+        return 'unknown';
+    }
+  }
+}

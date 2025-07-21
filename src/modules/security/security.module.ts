@@ -52,10 +52,10 @@ import { SharedModule } from '../shared/shared.module';
   imports: [
     // Database entities
     TypeOrmModule.forFeature([ApiKey, SecurityAuditLog]),
-    
+
     // Shared module for Redis and other providers
     SharedModule,
-    
+
     // ThrottlerModule is configured in AppModule to avoid duplication
   ],
   providers: [

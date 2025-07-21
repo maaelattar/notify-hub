@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 
-import { RedisMetricsService } from './redis-metrics.service';
+import { RedisMetricsService } from '../../monitoring/services/redis-metrics.service';
 import { RedisProvider } from '../providers/redis.provider';
 import { NotificationPriority } from '../../notifications/enums/notification-priority.enum';
 

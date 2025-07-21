@@ -7,7 +7,7 @@ import {
   NotificationDeliveredEvent,
   NotificationCancelledEvent,
 } from '../../../common/events/domain-events';
-import { RedisMetricsService } from '../../common/services/redis-metrics.service';
+import { RedisMetricsService } from '../../monitoring/services/redis-metrics.service';
 
 /**
  * Event handler for notification analytics and metrics

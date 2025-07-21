@@ -25,7 +25,7 @@ export function IsNotificationRecipient(validationOptions?: ValidationOptions) {
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
+        validate(value: any) {
           if (typeof value !== 'string') return false;
 
           const trimmed = value.trim();
@@ -36,13 +36,15 @@ export function IsNotificationRecipient(validationOptions?: ValidationOptions) {
 
           // Phone format (E.164)
           const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-          if (phoneRegex.test(trimmed.replace(/[\s\-\(\)]/g, ''))) return true;
+          if (phoneRegex.test(trimmed.replace(/[\s\-()]/g, ''))) return true;
 
           // URL format
           try {
             const url = new URL(trimmed);
             if (['http:', 'https:'].includes(url.protocol)) return true;
-          } catch {}
+          } catch {
+            // Invalid URL format
+          }
 
           // Device token format (hex or base64)
           const hexRegex = /^[a-fA-F0-9]{8,}$/;
@@ -80,7 +82,7 @@ export function IsNotificationContent(
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
+        validate(value: any) {
           if (typeof value !== 'string') return false;
 
           const trimmed = value.trim();
@@ -134,7 +136,7 @@ export function IsNotificationSubject(validationOptions?: ValidationOptions) {
           if (trimmed.length > 255) return false;
 
           // Get the notification object to check channel
-          const notification = args.object as any;
+          const notification = args.object as { channel?: NotificationChannel };
           const channel = notification.channel;
 
           // SMS notifications should not have subjects

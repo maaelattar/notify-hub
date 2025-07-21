@@ -5,7 +5,6 @@ import { NotificationResponseDto } from '../dto/notification-response.dto';
 import { NotificationFilterDto } from '../dto/notification-filter.dto';
 import { PaginatedResponseDto } from '../dto/paginated-response.dto';
 import { NotificationStatsDto } from '../dto/notification-stats.dto';
-import { Notification } from '../entities/notification.entity';
 import { NotificationPriority } from '../enums/notification-priority.enum';
 import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationBusinessLogicService } from './notification-business-logic.service';

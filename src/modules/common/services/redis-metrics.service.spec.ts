@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RedisMetricsService } from './redis-metrics.service';
+import { RedisMetricsService } from '../../monitoring/services/redis-metrics.service';
 import { RedisProvider } from '../providers/redis.provider';
 import { NotificationPriority } from '../../notifications/enums/notification-priority.enum';
 import {

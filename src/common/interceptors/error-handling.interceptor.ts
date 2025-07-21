@@ -13,9 +13,7 @@ import { Request } from 'express';
 import { RequestWithCorrelationId } from '../../modules/security/middleware/correlation-id.middleware';
 import {
   ValidationErrorContext,
-  SecurityErrorContext,
   BusinessErrorContext,
-  SystemErrorContext,
 } from '../types/notification.types';
 
 interface ErrorContext {

@@ -1,5 +1,4 @@
 import { NotificationChannel } from '../../modules/notifications/enums/notification-channel.enum';
-import { NotificationStatus } from '../../modules/notifications/enums/notification-status.enum';
 import { NotificationPriority } from '../../modules/notifications/enums/notification-priority.enum';
 
 /**

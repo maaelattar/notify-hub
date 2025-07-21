@@ -102,11 +102,3 @@ export const databaseConfig = registerAs('database', () => {
   return createDatabaseConfig(validatedEnv);
 });
 
-// Create config for CLI usage
-export function createCliConfig(): Config {
-  const validatedEnv = validateConfig(process.env);
-  return {
-    app: createAppConfig(validatedEnv),
-    database: createDatabaseConfig(validatedEnv),
-  };
-}

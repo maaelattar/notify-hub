@@ -11,9 +11,22 @@ import {
   EventHandler,
   EventPublisher,
   AllDomainEvents,
-  EventTypeMap,
 } from './domain-events';
 import { randomUUID } from 'crypto';
+
+interface ModuleProvider {
+  instance: unknown;
+}
+
+interface ModuleContainer {
+  providers: Map<string, ModuleProvider>;
+}
+
+interface ModuleRefContainer {
+  container: {
+    getModules(): Map<string, ModuleContainer>;
+  };
+}
 
 /**
  * Advanced event bus implementation using Observer pattern
@@ -26,7 +39,8 @@ export class EventBusService
 {
   private readonly logger = new Logger(EventBusService.name);
   private readonly handlers = new Map<string, EventHandler[]>();
-  private readonly eventEmitter = new EventEmitter2({
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+  private readonly eventEmitter: EventEmitter2 = new (EventEmitter2 as any)({
     wildcard: true,
     delimiter: '.',
     maxListeners: 100,
@@ -37,15 +51,16 @@ export class EventBusService
   /**
    * Register event handlers during module initialization
    */
-  async onModuleInit() {
-    await this.discoverAndRegisterHandlers();
+  onModuleInit() {
+    this.discoverAndRegisterHandlers();
   }
 
   /**
    * Cleanup event listeners
    */
   onModuleDestroy() {
-    this.eventEmitter.removeAllListeners();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    (this.eventEmitter as any).removeAllListeners();
     this.handlers.clear();
   }
 
@@ -61,7 +76,8 @@ export class EventBusService
 
     try {
       // Emit to internal event emitter for immediate handling
-      this.eventEmitter.emit(event.eventType, event);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      (this.eventEmitter as any).emit(event.eventType, event);
 
       // Handle registered handlers
       await this.handleEvent(event);
@@ -124,7 +140,7 @@ export class EventBusService
     eventType: T['eventType'],
     aggregateId: string,
     aggregateType: string,
-    payload: any,
+    payload: T extends { payload: infer P } ? P : Record<string, unknown>,
     options: {
       correlationId?: string;
       causationId?: string;
@@ -210,12 +226,14 @@ export class EventBusService
   /**
    * Automatically discover and register event handlers from the DI container
    */
-  private async discoverAndRegisterHandlers(): Promise<void> {
+  private discoverAndRegisterHandlers(): void {
     this.logger.debug('Starting event handler discovery...');
 
     try {
       // Get all providers from the module container
-      const providers = (this.moduleRef as any).container.getModules();
+      const providers = (
+        this.moduleRef as ModuleRefContainer
+      ).container.getModules();
       let handlersRegistered = 0;
 
       for (const module of providers.values()) {
@@ -240,12 +258,15 @@ export class EventBusService
   /**
    * Check if an object is an event handler
    */
-  private isEventHandler(obj: any): obj is EventHandler {
+  private isEventHandler(obj: unknown): obj is EventHandler {
+    if (!obj || typeof obj !== 'object') {
+      return false;
+    }
+
+    const candidate = obj as { eventType?: unknown; handle?: unknown };
     return (
-      obj &&
-      typeof obj === 'object' &&
-      typeof obj.eventType === 'string' &&
-      typeof obj.handle === 'function'
+      typeof candidate.eventType === 'string' &&
+      typeof candidate.handle === 'function'
     );
   }
 }
