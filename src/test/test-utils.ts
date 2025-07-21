@@ -4,7 +4,6 @@ import { Repository, ObjectLiteral } from 'typeorm';
 import { Notification } from '../modules/notifications/entities/notification.entity';
 import { NotificationChannel } from '../modules/notifications/enums/notification-channel.enum';
 import { NotificationStatus } from '../modules/notifications/enums/notification-status.enum';
-import { NotificationPriority } from '../modules/notifications/enums/notification-priority.enum';
 import { CreateNotificationDto } from '../modules/notifications/dto/create-notification.dto';
 import { NotificationResponseDto } from '../modules/notifications/dto/notification-response.dto';
 import { PaginatedResponseDto } from '../modules/notifications/dto/paginated-response.dto';
@@ -15,7 +14,6 @@ import {
   MockNotificationProducer,
   MockBullQueue,
   MockLogger,
-  MockRepository,
 } from './mock-types';
 
 /**
@@ -29,19 +27,19 @@ export class TestDataBuilder {
     overrides: Partial<Notification> = {},
   ): Notification {
     const entity = new Notification();
-    entity.id = overrides.id || randomUUID();
-    entity.channel = overrides.channel || NotificationChannel.EMAIL;
-    entity.recipient = overrides.recipient || 'test@example.com';
-    entity.subject = overrides.subject || 'Test Subject';
-    entity.content = overrides.content || 'Test notification content';
-    entity.status = overrides.status || NotificationStatus.CREATED;
+    entity.id = overrides.id ?? randomUUID();
+    entity.channel = overrides.channel ?? NotificationChannel.EMAIL;
+    entity.recipient = overrides.recipient ?? 'test@example.com';
+    entity.subject = overrides.subject ?? 'Test Subject';
+    entity.content = overrides.content ?? 'Test notification content';
+    entity.status = overrides.status ?? NotificationStatus.CREATED;
     entity.scheduledFor = overrides.scheduledFor || null;
     entity.createdAt = overrides.createdAt || new Date();
     entity.updatedAt = overrides.updatedAt || new Date();
     entity.deliveredAt = overrides.deliveredAt || null;
     entity.retryCount = overrides.retryCount || 0;
-    entity.lastError = overrides.lastError || null;
-    entity.sentAt = overrides.sentAt || null;
+    entity.lastError = overrides.lastError ?? null;
+    entity.sentAt = overrides.sentAt ?? null;
     entity.metadata = overrides.metadata || {};
 
     return entity;
@@ -54,12 +52,12 @@ export class TestDataBuilder {
     overrides: Partial<CreateNotificationDto> = {},
   ): CreateNotificationDto {
     const dto = new CreateNotificationDto();
-    dto.channel = overrides.channel || NotificationChannel.EMAIL;
-    dto.recipient = overrides.recipient || 'test@example.com';
-    dto.subject = overrides.subject || 'Test Subject';
-    dto.content = overrides.content || 'Test notification content';
+    dto.channel = overrides.channel ?? NotificationChannel.EMAIL;
+    dto.recipient = overrides.recipient ?? 'test@example.com';
+    dto.subject = overrides.subject ?? 'Test Subject';
+    dto.content = overrides.content ?? 'Test notification content';
     dto.scheduledFor = overrides.scheduledFor;
-    dto.metadata = overrides.metadata || {};
+    dto.metadata = overrides.metadata ?? {};
 
     return dto;
   }
@@ -76,18 +74,18 @@ export class TestDataBuilder {
     return {
       id: overrides.id || baseEntity.id,
       channel: overrides.channel || baseEntity.channel,
-      recipient: overrides.recipient || baseEntity.recipient,
-      subject: overrides.subject || baseEntity.subject,
-      content: overrides.content || baseEntity.content,
-      status: overrides.status || baseEntity.status,
-      scheduledFor: overrides.scheduledFor || baseEntity.scheduledFor,
-      createdAt: overrides.createdAt || baseEntity.createdAt,
+      recipient: overrides.recipient ?? baseEntity.recipient,
+      subject: overrides.subject ?? baseEntity.subject,
+      content: overrides.content ?? baseEntity.content,
+      status: overrides.status ?? baseEntity.status,
+      scheduledFor: overrides.scheduledFor ?? baseEntity.scheduledFor,
+      createdAt: overrides.createdAt ?? baseEntity.createdAt,
       updatedAt: overrides.updatedAt || baseEntity.updatedAt,
       deliveredAt: overrides.deliveredAt || baseEntity.deliveredAt,
       retryCount: overrides.retryCount || baseEntity.retryCount,
       lastError: overrides.lastError || baseEntity.lastError,
-      sentAt: overrides.sentAt || baseEntity.sentAt,
-      metadata: overrides.metadata || baseEntity.metadata,
+      sentAt: overrides.sentAt ?? baseEntity.sentAt,
+      metadata: overrides.metadata ?? baseEntity.metadata,
     };
   }
 
@@ -102,8 +100,8 @@ export class TestDataBuilder {
       limit?: number;
     } = {},
   ): PaginatedResponseDto<T> {
-    const total = options.total || data.length;
-    const pagination = new Pagination(options.page || 1, options.limit || 20);
+    const total = options.total ?? data.length;
+    const pagination = new Pagination(options.page ?? 1, options.limit ?? 20);
 
     return new PaginatedResponseDto(data, total, pagination);
   }

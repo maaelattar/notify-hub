@@ -15,7 +15,7 @@ export class MetricsService {
   private readonly logger = new Logger(MetricsService.name);
 
   // In-memory metrics storage (in production, use Redis or database)
-  private metrics = {
+  private readonly metrics = {
     sent: new Map<string, number>(),
     failed: new Map<string, number>(),
     processingTimes: [] as number[],
@@ -30,7 +30,7 @@ export class MetricsService {
   ): void {
     try {
       // Record overall sent count
-      const currentSent = this.metrics.sent.get('total') || 0;
+      const currentSent = this.metrics.sent.get('total') ?? 0;
       this.metrics.sent.set('total', currentSent + 1);
 
       // Record processing time
@@ -76,7 +76,7 @@ export class MetricsService {
   ): void {
     try {
       // Record overall failed count
-      const currentFailed = this.metrics.failed.get('total') || 0;
+      const currentFailed = this.metrics.failed.get('total') ?? 0;
       this.metrics.failed.set('total', currentFailed + 1);
 
       // Record channel stats if available
@@ -108,8 +108,8 @@ export class MetricsService {
 
   getMetrics(): NotificationMetrics {
     try {
-      const totalSent = this.metrics.sent.get('total') || 0;
-      const totalFailed = this.metrics.failed.get('total') || 0;
+      const totalSent = this.metrics.sent.get('total') ?? 0;
+      const totalFailed = this.metrics.failed.get('total') ?? 0;
       const total = totalSent + totalFailed;
 
       const averageProcessingTime =

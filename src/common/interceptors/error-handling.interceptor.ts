@@ -407,15 +407,15 @@ export class ErrorHandlingInterceptor implements NestInterceptor {
       return realIp;
     }
 
-    return request.ip || 'unknown';
+    return request.ip ?? 'unknown';
   }
 
   private extractUserId(request: any): string | undefined {
     // Try to extract user ID from various possible locations
     return (
-      request.user?.id ||
-      request.apiKey?.organizationId ||
-      (request.headers['x-user-id'] as string) ||
+      request.user?.id ??
+      request.apiKey?.organizationId ??
+      (request.headers['x-user-id'] as string) ??
       undefined
     );
   }

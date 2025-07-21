@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { EventHandler } from '../domain-events';
 import {
+  EventHandler,
   NotificationCreatedEvent,
   NotificationSentEvent,
   NotificationFailedEvent,
@@ -258,7 +258,6 @@ export class NotificationCacheHandler implements EventHandler {
 
   async handle(event: any): Promise<void> {
     try {
-      const cacheKey = `notification:${event.aggregateId}:status`;
       const statusData = {
         id: event.aggregateId,
         status: this.extractStatusFromEvent(event),
@@ -326,16 +325,15 @@ export class NotificationWebSocketHandler implements EventHandler {
       // 2. Send real-time updates about notification status changes
       // 3. Filter updates based on user permissions
 
-      const wsUpdate = {
-        type: 'notification_update',
-        eventType: event.eventType,
-        notificationId: event.aggregateId,
-        status: this.extractStatusFromEvent(event),
-        timestamp: event.occurredAt,
-        channel: event.payload?.channel,
-      };
-
       // Example WebSocket broadcast (would need WebSocket service)
+      // const wsUpdate = {
+      //   type: 'notification_update',
+      //   eventType: event.eventType,
+      //   notificationId: event.aggregateId,
+      //   status: this.extractStatusFromEvent(event),
+      //   timestamp: event.occurredAt,
+      //   channel: event.payload?.channel,
+      // };
       // await this.websocketService.broadcast(wsUpdate, event.metadata.userId);
 
       this.logger.debug('Prepared WebSocket notification update', {
@@ -352,27 +350,6 @@ export class NotificationWebSocketHandler implements EventHandler {
           error: error instanceof Error ? error.message : 'Unknown error',
         },
       );
-    }
-  }
-
-  private extractStatusFromEvent(event: any): string {
-    switch (event.eventType) {
-      case 'NotificationCreated':
-        return 'created';
-      case 'NotificationQueued':
-        return 'queued';
-      case 'NotificationSent':
-        return 'sent';
-      case 'NotificationDelivered':
-        return 'delivered';
-      case 'NotificationFailed':
-        return 'failed';
-      case 'NotificationCancelled':
-        return 'cancelled';
-      case 'NotificationRetried':
-        return 'queued';
-      default:
-        return 'unknown';
     }
   }
 }

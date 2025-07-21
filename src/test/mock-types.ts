@@ -4,7 +4,6 @@
  */
 
 import { Logger } from '@nestjs/common';
-import { Repository } from 'typeorm';
 
 /**
  * Mock logger interface with all Logger methods properly typed

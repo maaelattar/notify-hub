@@ -88,7 +88,7 @@ export class NotificationDataAccessService {
   async create(notificationData: Partial<Notification>): Promise<Notification> {
     this.logger.debug(`Creating notification entity`, {
       channel: notificationData.channel,
-      recipient: this.maskSensitiveData(notificationData.recipient || ''),
+      recipient: this.maskSensitiveData(notificationData.recipient ?? ''),
       hasSchedule: !!notificationData.scheduledFor,
     });
 

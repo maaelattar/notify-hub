@@ -18,20 +18,20 @@ export default registerAs('email', (): EmailConfig => {
 
   return {
     transport: {
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: parseInt(process.env.SMTP_PORT || '587', 10) || 587,
+      host: process.env.SMTP_HOST ?? 'smtp.ethereal.email',
+      port: parseInt(process.env.SMTP_PORT ?? '587', 10) || 587,
       secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
       auth: {
-        user: process.env.SMTP_USER || '',
-        pass: process.env.SMTP_PASS || '',
+        user: process.env.SMTP_USER ?? '',
+        pass: process.env.SMTP_PASS ?? '',
       },
       // Additional options for production
       pool: true, // Use pooled connections
       maxConnections:
-        parseInt(process.env.SMTP_MAX_CONNECTIONS || '5', 10) || 5,
-      maxMessages: parseInt(process.env.SMTP_MAX_MESSAGES || '100', 10) || 100,
-      rateDelta: parseInt(process.env.SMTP_RATE_DELTA || '1000', 10) || 1000, // How often to check rate limit
-      rateLimit: parseInt(process.env.SMTP_RATE_LIMIT || '5', 10) || 5, // Messages per rateDelta
+        parseInt(process.env.SMTP_MAX_CONNECTIONS ?? '5', 10) || 5,
+      maxMessages: parseInt(process.env.SMTP_MAX_MESSAGES ?? '100', 10) || 100,
+      rateDelta: parseInt(process.env.SMTP_RATE_DELTA ?? '1000', 10) || 1000, // How often to check rate limit
+      rateLimit: parseInt(process.env.SMTP_RATE_LIMIT ?? '5', 10) || 5, // Messages per rateDelta
     },
     defaults: {
       from: process.env.SMTP_FROM || '"NotifyHub" <noreply@notifyhub.com>',

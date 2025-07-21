@@ -17,10 +17,10 @@ import { Notification } from '../../../notifications/entities/notification.entit
 export class EmailService implements EmailProvider, OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
-  private templates: Map<string, handlebars.TemplateDelegate> = new Map();
+  private readonly templates: Map<string, handlebars.TemplateDelegate> = new Map();
   private isEthereal = false;
 
-  constructor(private configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {}
 
   async onModuleInit() {
     await this.initializeTransporter();
@@ -155,19 +155,19 @@ export class EmailService implements EmailProvider, OnModuleInit {
         cc: options.cc,
         bcc: options.bcc,
         subject: options.subject,
-        priority: options.priority || 'normal',
+        priority: options.priority ?? 'normal',
         headers: options.headers,
       };
 
       // Handle template or direct content
       if (options.template && this.templates.has(options.template)) {
         const template = this.templates.get(options.template)!;
-        mailOptions.html = template(options.context || {});
+        mailOptions.html = template(options.context ?? {});
         // Generate text version from HTML
         mailOptions.text = this.htmlToText(mailOptions.html);
       } else {
         mailOptions.html = options.html;
-        mailOptions.text = options.text || this.htmlToText(options.html || '');
+        mailOptions.text = options.text ?? this.htmlToText(options.html ?? '');
       }
 
       // Add attachments if any
@@ -191,7 +191,7 @@ export class EmailService implements EmailProvider, OnModuleInit {
 
       // Add preview URL for Ethereal
       if (this.isEthereal) {
-        result.previewUrl = nodemailer.getTestMessageUrl(info) || undefined;
+        result.previewUrl = nodemailer.getTestMessageUrl(info) ?? undefined;
         this.logger.log(`Preview email at: ${result.previewUrl}`);
       }
 
@@ -217,8 +217,8 @@ export class EmailService implements EmailProvider, OnModuleInit {
     // Prepare email from notification
     const emailOptions: EmailOptions = {
       to: notification.recipient,
-      subject: notification.subject || 'Notification',
-      template: (notification.metadata?.template as string) || 'notification',
+      subject: notification.subject ?? 'Notification',
+      template: (notification.metadata?.template as string) ?? 'notification',
       context: {
         content: notification.content,
         notificationId: notification.id,

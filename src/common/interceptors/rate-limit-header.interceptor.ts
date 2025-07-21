@@ -10,7 +10,7 @@ import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class RateLimitHeaderInterceptor implements NestInterceptor {
-  constructor(private reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(

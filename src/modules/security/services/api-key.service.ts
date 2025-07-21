@@ -60,9 +60,9 @@ export class ApiKeyService {
     apiKey.name = request.name;
     apiKey.scopes = request.scopes;
     apiKey.rateLimit = request.rateLimit;
-    apiKey.expiresAt = request.expiresAt || null;
-    apiKey.organizationId = request.organizationId || null;
-    apiKey.createdByUserId = request.createdByUserId || null;
+    apiKey.expiresAt = request.expiresAt ?? null;
+    apiKey.organizationId = request.organizationId ?? null;
+    apiKey.createdByUserId = request.createdByUserId ?? null;
     apiKey.isActive = true;
 
     // Save to database
@@ -420,7 +420,7 @@ export class ApiKeyService {
       const dailyKey = `api_key_usage:${apiKeyId}:${dayTimestamp}`;
 
       const requests = await redis.get(dailyKey);
-      const requestCount = parseInt(requests || '0', 10);
+      const requestCount = parseInt(requests ?? '0', 10);
 
       totalRequests += requestCount;
       dailyBreakdown.push({
@@ -431,9 +431,10 @@ export class ApiKeyService {
       });
     }
 
+    const sortedBreakdown = [...dailyBreakdown].reverse(); // Oldest first
     return {
       totalRequests,
-      dailyBreakdown: dailyBreakdown.reverse(), // Oldest first
+      dailyBreakdown: sortedBreakdown,
     };
   }
 }

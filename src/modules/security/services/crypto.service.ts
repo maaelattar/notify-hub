@@ -53,7 +53,10 @@ export class CryptoService {
       const buffer2 = Buffer.from(hash2, 'hex');
 
       return timingSafeEqual(buffer1, buffer2);
-    } catch (_error) {
+    } catch (error) {
+      this.logger.warn('Hash comparison failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       return false;
     }
   }

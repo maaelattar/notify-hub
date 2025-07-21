@@ -15,7 +15,7 @@ export interface ValidationError {
 }
 
 export class ValidationContext {
-  private errors: ValidationError[] = [];
+  private readonly errors: ValidationError[] = [];
 
   constructor(private readonly dto: CreateNotificationDto) {}
 
@@ -328,7 +328,7 @@ export class RecipientFormatValidator implements INotificationValidator {
       /[<>'"]/, // HTML/XML characters
       /[{}]/, // Template injection
       /[;|&]/, // Command injection
-      /\x00/, // Null bytes
+      new RegExp(String.fromCharCode(0)), // Null bytes
     ];
 
     return suspiciousPatterns.some((pattern) => pattern.test(recipient));

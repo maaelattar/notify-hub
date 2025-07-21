@@ -290,7 +290,7 @@ describe('ChannelRouter', () => {
       mockEmailService.verify.mockResolvedValue(true);
       mockConfigService.get.mockImplementation((key) => {
         if (key === 'channels.email.enabled') return true;
-        return true;
+        return false; // Default to false for unknown keys
       });
 
       // Act

@@ -64,7 +64,7 @@ export class Recipient {
    * Factory method for phone number recipients
    */
   static phone(phone: string, countryCode?: string): Recipient {
-    const cleaned = phone.replace(/[\s\-\(\)]/g, ''); // Remove formatting
+    const cleaned = phone.replace(/[\s\-()]/g, ''); // Remove formatting
 
     if (!this.isValidPhoneFormat(cleaned)) {
       throw new InvalidRecipientError(
@@ -212,7 +212,7 @@ export class Recipient {
    * Get domain for email or webhook recipients
    */
   getDomain(): string | null {
-    return this.metadata.domain || null;
+    return this.metadata.domain ?? null;
   }
 
   /**
@@ -233,7 +233,7 @@ export class Recipient {
    * Get country code for phone recipients
    */
   getCountryCode(): string | null {
-    return this.metadata.countryCode || null;
+    return this.metadata.countryCode ?? null;
   }
 
   /**
@@ -241,22 +241,24 @@ export class Recipient {
    */
   getMaskedValue(): string {
     switch (this.metadata.type) {
-      case RecipientType.EMAIL:
+      case RecipientType.EMAIL: {
         const [local, domain] = this.value.split('@');
         const maskedLocal =
           local.length > 2
             ? `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}`
             : local;
         return `${maskedLocal}@${domain}`;
+      }
 
       case RecipientType.PHONE:
         return this.value.length > 4
           ? `${this.value.substring(0, 4)}${'*'.repeat(this.value.length - 8)}${this.value.substring(this.value.length - 4)}`
           : this.value;
 
-      case RecipientType.WEBHOOK_URL:
+      case RecipientType.WEBHOOK_URL: {
         const url = new URL(this.value);
         return `${url.protocol}//${url.hostname}/***`;
+      }
 
       case RecipientType.DEVICE_TOKEN:
         return this.value.length > 8
@@ -334,7 +336,7 @@ export class Recipient {
       /[<>'"]/, // HTML/XML characters
       /[{}]/, // Template injection
       /[;|&]/, // Command injection
-      /\x00/, // Null bytes
+      new RegExp(String.fromCharCode(0)), // Null bytes
       /javascript:/i, // JavaScript protocol
       /data:/i, // Data URLs
     ];
@@ -378,7 +380,8 @@ export class Recipient {
 
   private static extractCountryCode(phone: string): string | undefined {
     // Basic country code extraction (simplified)
-    const match = phone.match(/^\+(\d{1,4})/);
+    const regex = /^\+(\d{1,4})/;
+    const match = regex.exec(phone);
     return match ? match[1] : undefined;
   }
 }

@@ -58,9 +58,9 @@ export class ApiKeyGuard implements CanActivate {
 
     // Extract request metadata
     const ipAddress = this.getClientIp(request);
-    const userAgent = request.headers['user-agent'] || 'unknown';
-    const requestId = request.requestId || this.generateRequestId();
-    const endpoint = `${request.method} ${request.route?.path || request.url}`;
+    const userAgent = request.headers['user-agent'] ?? 'unknown';
+    const requestId = request.requestId ?? this.generateRequestId();
+    const endpoint = `${request.method} ${request.route?.path ?? request.url}`;
 
     // Set request ID for tracking
     request.requestId = requestId;
@@ -152,7 +152,7 @@ export class ApiKeyGuard implements CanActivate {
 
     // Check Authorization header with Bearer scheme
     const authHeader = request.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader?.startsWith('Bearer ')) {
       return authHeader.substring(7);
     }
 
@@ -172,7 +172,7 @@ export class ApiKeyGuard implements CanActivate {
       return realIp;
     }
 
-    return request.ip || 'unknown';
+    return request.ip ?? 'unknown';
   }
 
   private generateRequestId(): string {
@@ -189,8 +189,8 @@ export class ApiKeyGuard implements CanActivate {
       scopes: apiKey.scopes,
       organizationId: apiKey.organizationId ?? undefined,
       rateLimit: {
-        limit: rateLimitInfo?.limit || 0,
-        current: rateLimitInfo?.current || 0,
+        limit: rateLimitInfo?.limit ?? 0,
+        current: rateLimitInfo?.current ?? 0,
         resetTime: rateLimitInfo?.resetTime,
       },
     };
@@ -241,7 +241,7 @@ export class ApiKeyGuard implements CanActivate {
         return new UnauthorizedException({
           error: 'Authentication failed',
           code: 'AUTH_FAILED',
-          message: validationResult.reason || 'Authentication failed',
+          message: validationResult.reason ?? 'Authentication failed',
         });
     }
   }

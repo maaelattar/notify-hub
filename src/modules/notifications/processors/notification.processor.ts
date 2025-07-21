@@ -85,77 +85,110 @@ export class NotificationProcessor {
 
       // 5. Update status based on result
       if (result.success) {
-        await this.notificationRepository.update(notificationId, {
-          status: NotificationStatus.SENT,
-          sentAt: new Date(),
-          metadata: {
-            ...notification.metadata,
-            delivery: {
-              messageId: result.messageId,
-              channel: result.channel,
-              deliveredAt: result.deliveredAt,
-              details: result.details,
-            },
-            processingTime: Date.now() - startTime,
-            attempts: attempt,
-          },
-        });
-
-        this.logger.log(
-          `Successfully sent notification ${notificationId} via ${notification.channel}`,
-        );
-
-        // Track metrics
-        this.metricsService.recordNotificationSent(
-          notification.channel,
+        return await this.handleSuccessfulDelivery(
+          notification,
+          result,
+          notificationId,
           priority,
-          Date.now() - startTime,
+          attempt,
+          startTime,
         );
-
-        return {
-          success: true,
-          messageId: result.messageId,
-          channel: result.channel,
-          processingTime: Date.now() - startTime,
-        };
       } else {
         throw new Error(result.error || 'Channel delivery failed');
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(
-        `Failed to process notification ${notificationId}`,
-        error instanceof Error ? error.stack : error,
+      await this.handleProcessingError(
+        error,
+        notification,
+        notificationId,
+        attempt,
+        priority,
+        job,
       );
+      throw error;
+    }
+  }
 
-      // Update notification with error
+  private async handleSuccessfulDelivery(
+    notification: Notification,
+    result: ChannelResult,
+    notificationId: string,
+    priority: string,
+    attempt: number,
+    startTime: number,
+  ) {
+    await this.notificationRepository.update(notificationId, {
+      status: NotificationStatus.SENT,
+      sentAt: new Date(),
+      metadata: {
+        ...notification.metadata,
+        delivery: {
+          messageId: result.messageId,
+          channel: result.channel,
+          deliveredAt: result.deliveredAt,
+          details: result.details,
+        },
+        processingTime: Date.now() - startTime,
+        attempts: attempt,
+      },
+    });
+
+    this.logger.log(
+      `Successfully sent notification ${notificationId} via ${notification.channel}`,
+    );
+
+    // Track metrics
+    this.metricsService.recordNotificationSent(
+      notification.channel,
+      priority,
+      Date.now() - startTime,
+    );
+
+    return {
+      success: true,
+      messageId: result.messageId,
+      channel: result.channel,
+      processingTime: Date.now() - startTime,
+    };
+  }
+
+  private async handleProcessingError(
+    error: unknown,
+    notification: Notification | null,
+    notificationId: string,
+    attempt: number,
+    priority: string,
+    job: Job<NotificationJobData>,
+  ) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    this.logger.error(
+      `Failed to process notification ${notificationId}`,
+      error instanceof Error ? error.stack : error,
+    );
+
+    // Update notification with error
+    if (notification) {
+      await this.notificationRepository.update(notificationId, {
+        lastError: errorMessage,
+        retryCount: attempt,
+      });
+    }
+
+    // Check if this is the last attempt
+    if (attempt >= (job.opts.attempts || 3)) {
       if (notification) {
-        await this.notificationRepository.update(notificationId, {
-          lastError: errorMessage,
-          retryCount: attempt,
-        });
-      }
-
-      // Check if this is the last attempt
-      if (attempt >= (job.opts.attempts || 3)) {
-        if (notification) {
-          await this.notificationRepository.updateStatus(
-            notificationId,
-            NotificationStatus.FAILED,
-          );
-        }
-
-        // Track failed metric
-        this.metricsService.recordNotificationFailed(
-          priority,
-          errorMessage,
-          notification?.channel,
+        await this.notificationRepository.updateStatus(
+          notificationId,
+          NotificationStatus.FAILED,
         );
       }
 
-      // Re-throw to trigger Bull's retry mechanism
-      throw error;
+      // Track failed metric
+      this.metricsService.recordNotificationFailed(
+        priority,
+        errorMessage,
+        notification?.channel,
+      );
     }
   }
 
@@ -172,8 +205,9 @@ export class NotificationProcessor {
     job: Job<NotificationJobData>,
     result: { processingTime?: number },
   ) {
+    const timingInfo = result.processingTime ? `in ${result.processingTime}ms` : '';
     this.logger.log(
-      `Job ${job.id} completed: ${job.data.notificationId} ${result.processingTime ? `in ${result.processingTime}ms` : ''}`,
+      `Job ${job.id} completed: ${job.data.notificationId} ${timingInfo}`,
     );
   }
 
@@ -184,8 +218,10 @@ export class NotificationProcessor {
       error.stack,
     );
 
-    // Additional error handling
-    void this.handleJobFailure(job, error);
+    // Additional error handling - fire and forget
+    this.handleJobFailure(job, error).catch((err) => {
+      this.logger.error('Failed to handle job failure', err);
+    });
   }
 
   /**

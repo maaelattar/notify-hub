@@ -1,17 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UnauthorizedException } from '@nestjs/common';
 import {
   ApiKeyService,
-  ApiKeyValidationResult,
   CreateApiKeyRequest,
 } from './api-key.service';
-import { ApiKey, ApiKeyRateLimit } from '../entities/api-key.entity';
+import { ApiKey } from '../entities/api-key.entity';
 import { CryptoService } from './crypto.service';
 import { SecurityAuditService } from './security-audit.service';
 import { RedisProvider } from '../../common/providers/redis.provider';
-import { MockFactory, TestDataBuilder } from '../../../test/test-utils';
+import { MockFactory } from '../../../test/test-utils';
 import { randomUUID } from 'crypto';
 
 describe('ApiKeyService - Security Tests', () => {
@@ -88,7 +86,7 @@ describe('ApiKeyService - Security Tests', () => {
     apiKeyRepository = module.get(getRepositoryToken(ApiKey));
     cryptoService = module.get(CryptoService);
     auditService = module.get(SecurityAuditService);
-    redisProvider = module.get(RedisProvider);
+    module.get(RedisProvider);
   });
 
   describe('API Key Creation Security', () => {
@@ -230,7 +228,6 @@ describe('ApiKeyService - Security Tests', () => {
 
     it('should reject inactive API keys', async () => {
       // Arrange
-      const inactiveKey = { ...validApiKey, isActive: false };
 
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
       cryptoService.hashApiKey.mockReturnValue(VALID_HASH);

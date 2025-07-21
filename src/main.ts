@@ -136,7 +136,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  const port = process.env.PORT || APP_CONSTANTS.SERVER.DEFAULT_PORT;
+  const port = process.env.PORT ?? APP_CONSTANTS.SERVER.DEFAULT_PORT;
   await app.listen(port);
 
   console.log(`NotifyHub API running on http://localhost:${port}`);

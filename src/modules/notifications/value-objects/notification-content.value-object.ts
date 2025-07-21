@@ -1,4 +1,5 @@
 import { NotificationChannel } from '../enums/notification-channel.enum';
+import { Logger } from '@nestjs/common';
 
 export class InvalidContentError extends Error {
   constructor(
@@ -34,6 +35,8 @@ export interface ContentMetadata {
  * Provides domain-specific operations for notification content
  */
 export class NotificationContent {
+  private static readonly logger = new Logger(NotificationContent.name);
+
   private constructor(
     private readonly value: string,
     private readonly metadata: ContentMetadata,
@@ -126,6 +129,11 @@ export class NotificationContent {
         JSON.parse(content);
         jsonString = content.trim();
       } catch (error) {
+        NotificationContent.logger.error('Failed to parse JSON content', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          contentPreview: content.substring(0, 50),
+        });
+        
         throw new InvalidContentError(
           'Invalid JSON format',
           'INVALID_JSON_FORMAT',
@@ -196,14 +204,14 @@ export class NotificationContent {
    * Get character count
    */
   getCharacterCount(): number {
-    return this.metadata.characterCount || this.value.length;
+    return this.metadata.characterCount ?? this.value.length;
   }
 
   /**
    * Get word count
    */
   getWordCount(): number {
-    return this.metadata.wordCount || 0;
+    return this.metadata.wordCount ?? 0;
   }
 
   /**
@@ -465,7 +473,7 @@ export class NotificationContent {
 
   private convertToHtml(): NotificationContent {
     switch (this.metadata.format) {
-      case ContentFormat.TEXT:
+      case ContentFormat.TEXT: {
         // Simple text to HTML conversion
         const htmlContent = this.value
           .replace(/&/g, '&amp;')
@@ -473,14 +481,16 @@ export class NotificationContent {
           .replace(/>/g, '&gt;')
           .replace(/\n/g, '<br>');
         return NotificationContent.html(htmlContent, true);
+      }
 
-      case ContentFormat.MARKDOWN:
+      case ContentFormat.MARKDOWN: {
         // Basic Markdown to HTML conversion (simplified)
         const html = this.value
           .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
           .replace(/\*(.*?)\*/g, '<em>$1</em>')
           .replace(/\n/g, '<br>');
         return NotificationContent.html(html, true);
+      }
 
       default:
         return NotificationContent.html(this.getPlainText(), true);
@@ -488,20 +498,18 @@ export class NotificationContent {
   }
 
   private convertToMarkdown(): NotificationContent {
-    switch (this.metadata.format) {
-      case ContentFormat.HTML:
-        // Basic HTML to Markdown conversion (simplified)
-        const markdown = this.value
-          .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
-          .replace(/<em>(.*?)<\/em>/g, '*$1*')
-          .replace(/<br>/g, '\n');
-        return NotificationContent.markdown(
-          NotificationContent.stripHtmlTags(markdown),
-        );
-
-      default:
-        return NotificationContent.markdown(this.getPlainText());
+    if (this.metadata.format === ContentFormat.HTML) {
+      // Basic HTML to Markdown conversion (simplified)
+      const markdown = this.value
+        .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+        .replace(/<em>(.*?)<\/em>/g, '*$1*')
+        .replace(/<br>/g, '\n');
+      return NotificationContent.markdown(
+        NotificationContent.stripHtmlTags(markdown),
+      );
     }
+
+    return NotificationContent.markdown(this.getPlainText());
   }
 
   private extractTextFromJson(obj: any): string {
@@ -511,7 +519,7 @@ export class NotificationContent {
 
     if (typeof obj === 'object' && obj !== null) {
       if (obj.content || obj.message || obj.text) {
-        return obj.content || obj.message || obj.text;
+        return obj.content ?? obj.message ?? obj.text;
       }
 
       // Extract all string values
@@ -563,7 +571,7 @@ export class NotificationContent {
       .replace(/~~(.*?)~~/g, '$1')
       .replace(/`(.*?)`/g, '$1')
       .replace(/#{1,6}\s/g, '')
-      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
   }
 
   private static looksLikeJson(content: string): boolean {
@@ -592,16 +600,7 @@ export class NotificationContent {
   }
 
   private static containsSuspiciousHtml(content: string): boolean {
-    const suspiciousPatterns = [
-      /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-      /javascript:/gi,
-      /on\w+\s*=/gi, // Event handlers
-      /data:text\/html/gi,
-      /<iframe\b/gi,
-      /<object\b/gi,
-      /<embed\b/gi,
-    ];
-
-    return suspiciousPatterns.some((pattern) => pattern.test(content));
+    // Reuse the existing containsMaliciousContent method for consistency
+    return new NotificationContent('', { format: ContentFormat.TEXT, encoding: 'utf-8' }).containsMaliciousContent(content);
   }
 }

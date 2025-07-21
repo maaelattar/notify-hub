@@ -13,12 +13,12 @@ import {
 @Injectable()
 export class ChannelRouter implements OnModuleInit {
   private readonly logger = new Logger(ChannelRouter.name);
-  private channels: Map<NotificationChannel, INotificationChannel> = new Map();
+  private readonly channels: Map<NotificationChannel, INotificationChannel> = new Map();
 
   constructor(
-    private moduleRef: ModuleRef,
-    private configService: ConfigService,
-    private metricsService: RedisMetricsService,
+    private readonly moduleRef: ModuleRef,
+    private readonly configService: ConfigService,
+    private readonly metricsService: RedisMetricsService,
   ) {}
 
   onModuleInit() {
@@ -179,7 +179,7 @@ export class ChannelRouter implements OnModuleInit {
 class EmailChannelAdapter implements INotificationChannel {
   readonly name = NotificationChannel.EMAIL;
 
-  constructor(private emailService: EmailService) {}
+  constructor(private readonly emailService: EmailService) {}
 
   async send(notification: Notification): Promise<ChannelResult> {
     const result = await this.emailService.sendNotification(notification);

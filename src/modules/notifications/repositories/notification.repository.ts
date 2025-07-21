@@ -77,9 +77,9 @@ export class NotificationRepository extends BaseRepository<Notification> {
 
     // Apply pagination limits from config
     const effectivePagination = {
-      page: pagination?.page || 1,
+      page: pagination?.page ?? 1,
       limit: Math.min(
-        pagination?.limit || this.notificationConfig.defaultPageSize,
+        pagination?.limit ?? this.notificationConfig.defaultPageSize,
         this.notificationConfig.maxPageSize,
       ),
     };

@@ -7,7 +7,7 @@ import {
   Logger,
   Injectable,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { QueryFailedError } from 'typeorm';
 import { ErrorResponseDto } from '../dto/error-response.dto';
 import { RequestWithCorrelationId } from '../../modules/security/middleware/correlation-id.middleware';
@@ -25,6 +25,58 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<RequestWithCorrelationId>();
 
+    const errorInfo = this.extractErrorInfo(exception);
+
+    // Use correlation ID from middleware
+    const requestId =
+      request.correlationId ||
+      (request.headers['x-request-id'] as string) ||
+      `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+
+    // Build error response
+    const errorResponse: ErrorResponseDto = {
+      statusCode: errorInfo.status,
+      error: this.getErrorName(errorInfo.status),
+      message: errorInfo.message,
+      code: errorInfo.code,
+      requestId,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+    };
+
+    // Add validation errors if present
+    if (errorInfo.errors) {
+      errorResponse.errors = errorInfo.errors;
+    }
+
+    // Add actionable guidance using factory
+    const guidance = this.errorGuidanceFactory.createGuidance(errorInfo.code, errorInfo.status);
+    if (guidance) {
+      errorResponse.guidance = guidance.toJSON();
+    }
+
+    // Add context for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      errorResponse.context = {
+        method: request.method,
+        ip: request.ip,
+        userAgent: request.headers['user-agent'],
+      };
+    }
+
+    // Log the error
+    this.logError(exception, request, errorInfo.status, requestId);
+
+    // Send response
+    response.status(errorInfo.status).json(errorResponse);
+  }
+
+  private extractErrorInfo(exception: unknown): {
+    status: number;
+    message: string;
+    code: string;
+    errors?: Record<string, string[]>;
+  } {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
     let code = 'INTERNAL_ERROR';
@@ -75,48 +127,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
     }
 
-    // Use correlation ID from middleware
-    const requestId =
-      request.correlationId ||
-      (request.headers['x-request-id'] as string) ||
-      `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    // Build error response
-    const errorResponse: ErrorResponseDto = {
-      statusCode: status,
-      error: this.getErrorName(status),
-      message,
-      code,
-      requestId,
-      timestamp: new Date().toISOString(),
-      path: request.url,
-    };
-
-    // Add validation errors if present
-    if (errors) {
-      errorResponse.errors = errors;
-    }
-
-    // Add actionable guidance using factory
-    const guidance = this.errorGuidanceFactory.createGuidance(code, status);
-    if (guidance) {
-      errorResponse.guidance = guidance.toJSON();
-    }
-
-    // Add context for debugging (only in development)
-    if (process.env.NODE_ENV === 'development') {
-      errorResponse.context = {
-        method: request.method,
-        ip: request.ip,
-        userAgent: request.headers['user-agent'],
-      };
-    }
-
-    // Log the error
-    this.logError(exception, request, status, requestId);
-
-    // Send response
-    response.status(status).json(errorResponse);
+    return { status, message, code, errors };
   }
 
   private handleDatabaseError(error: QueryFailedError<any>): {

@@ -101,4 +101,3 @@ export const databaseConfig = registerAs('database', () => {
   const validatedEnv = validateConfig(process.env);
   return createDatabaseConfig(validatedEnv);
 });
-

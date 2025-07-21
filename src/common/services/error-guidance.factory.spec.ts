@@ -10,7 +10,6 @@ import {
 
 describe('ErrorGuidanceFactory', () => {
   let factory: ErrorGuidanceFactory;
-  let configService: jest.Mocked<ConfigService>;
 
   beforeEach(async () => {
     const mockConfigService = {
@@ -28,7 +27,6 @@ describe('ErrorGuidanceFactory', () => {
     }).compile();
 
     factory = module.get<ErrorGuidanceFactory>(ErrorGuidanceFactory);
-    configService = module.get(ConfigService);
   });
 
   it('should be defined', () => {

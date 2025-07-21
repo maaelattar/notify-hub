@@ -68,7 +68,7 @@ export class EventBusService
       // Log successful publishing
       this.logger.debug(`Event published successfully: ${event.eventType}`, {
         eventId: event.eventId,
-        handlersCount: this.handlers.get(event.eventType)?.length || 0,
+        handlersCount: this.handlers.get(event.eventType)?.length ?? 0,
       });
     } catch (error) {
       this.logger.error(`Failed to publish event: ${event.eventType}`, {
@@ -138,14 +138,14 @@ export class EventBusService
       eventType,
       aggregateId,
       aggregateType,
-      version: options.version || 1,
+      version: options.version ?? 1,
       occurredAt: new Date(),
       correlationId: options.correlationId,
       causationId: options.causationId,
       metadata: {
         userId: options.userId,
         organizationId: options.organizationId,
-        source: options.source || 'NotifyHub',
+        source: options.source ?? 'NotifyHub',
         ...options,
       },
       payload,

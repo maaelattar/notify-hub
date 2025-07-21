@@ -64,7 +64,7 @@ describe('CryptoService - Security Tests', () => {
         const firstChar = key[0];
         firstCharCounts.set(
           firstChar,
-          (firstCharCounts.get(firstChar) || 0) + 1,
+          (firstCharCounts.get(firstChar) ?? 0) + 1,
         );
       });
 
@@ -89,7 +89,7 @@ describe('CryptoService - Security Tests', () => {
       // Basic entropy test: count different byte values
       const byteCounts = new Map<number, number>();
       allBytes.forEach((byte) => {
-        byteCounts.set(byte, (byteCounts.get(byte) || 0) + 1);
+        byteCounts.set(byte, (byteCounts.get(byte) ?? 0) + 1);
       });
 
       // Should have good distribution of byte values
@@ -102,7 +102,9 @@ describe('CryptoService - Security Tests', () => {
 
       // Small delay
       const start = Date.now();
-      while (Date.now() - start < 1) {} // 1ms delay
+      while (Date.now() - start < 1) {
+        // 1ms delay - intentional busy wait for timing test
+      }
 
       const key2 = service.generateApiKey();
 
@@ -130,9 +132,9 @@ describe('CryptoService - Security Tests', () => {
       const apiKey = 'test-api-key-12345';
 
       // Act
-      const hash1 = await service.hashApiKey(apiKey);
-      const hash2 = await service.hashApiKey(apiKey);
-      const hash3 = await service.hashApiKey(apiKey);
+      const hash1 = service.hashApiKey(apiKey);
+      const hash2 = service.hashApiKey(apiKey);
+      const hash3 = service.hashApiKey(apiKey);
 
       // Assert
       expect(hash1).toBe(hash2);
@@ -147,9 +149,9 @@ describe('CryptoService - Security Tests', () => {
       const apiKey3 = 'different-key';
 
       // Act
-      const hash1 = await service.hashApiKey(apiKey1);
-      const hash2 = await service.hashApiKey(apiKey2);
-      const hash3 = await service.hashApiKey(apiKey3);
+      const hash1 = service.hashApiKey(apiKey1);
+      const hash2 = service.hashApiKey(apiKey2);
+      const hash3 = service.hashApiKey(apiKey3);
 
       // Assert
       expect(hash1).not.toBe(hash2);
@@ -162,7 +164,7 @@ describe('CryptoService - Security Tests', () => {
       const apiKey = 'test-api-key-12345';
 
       // Act
-      const hash = await service.hashApiKey(apiKey);
+      const hash = service.hashApiKey(apiKey);
 
       // Assert
       expect(hash).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hex is 64 chars
@@ -174,8 +176,8 @@ describe('CryptoService - Security Tests', () => {
       const baseKey = 'test-api-key-12345';
       const modifiedKey = 'test-api-key-12346'; // One character different
 
-      const baseHash = await service.hashApiKey(baseKey);
-      const modifiedHash = await service.hashApiKey(modifiedKey);
+      const baseHash = service.hashApiKey(baseKey);
+      const modifiedHash = service.hashApiKey(modifiedKey);
 
       // Convert to binary and count different bits
       const baseBits = BigInt('0x' + baseHash)
@@ -212,7 +214,7 @@ describe('CryptoService - Security Tests', () => {
 
       const hashes: string[] = [];
       for (const testCase of testCases) {
-        const hash = await service.hashApiKey(testCase);
+        const hash = service.hashApiKey(testCase);
         hashes.push(hash);
 
         // Each hash should be valid SHA-256 hex
@@ -229,7 +231,7 @@ describe('CryptoService - Security Tests', () => {
       // But we can verify that the hash doesn't contain obvious patterns from the input
 
       const apiKey = 'very-predictable-pattern-12345';
-      const hash = await service.hashApiKey(apiKey);
+      const hash = service.hashApiKey(apiKey);
 
       // Hash shouldn't contain obvious patterns from input
       expect(hash).not.toContain('predictable');
@@ -494,7 +496,7 @@ describe('CryptoService - Security Tests', () => {
       // Check for uniform distribution (basic test)
       const charCounts = new Map<string, number>();
       for (const char of allChars) {
-        charCounts.set(char, (charCounts.get(char) || 0) + 1);
+        charCounts.set(char, (charCounts.get(char) ?? 0) + 1);
       }
 
       // No character should be overly dominant
@@ -553,7 +555,7 @@ describe('CryptoService - Security Tests', () => {
         const largeInput = 'A'.repeat(size);
 
         const start = process.hrtime.bigint();
-        const hash = await service.hashApiKey(largeInput);
+        const hash = service.hashApiKey(largeInput);
         const end = process.hrtime.bigint();
 
         const timeMs = Number(end - start) / 1000000;
@@ -572,7 +574,7 @@ describe('CryptoService - Security Tests', () => {
       const startTime = Date.now();
 
       for (const input of inputs) {
-        const hash = await service.hashApiKey(input);
+        const hash = service.hashApiKey(input);
         hashes.push(hash);
       }
 

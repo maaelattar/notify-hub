@@ -16,7 +16,6 @@ import { LoggingInterceptor } from '../src/common/interceptors/logging.intercept
 import { ApiVersionInterceptor } from '../src/common/interceptors/api-version.interceptor';
 
 import {
-  TestDataBuilder,
   TestEnvironment,
   TestDateUtils,
 } from '../src/test/test-utils';
@@ -215,7 +214,7 @@ describe('Notifications (E2E)', () => {
   });
 
   describe('GET /notifications', () => {
-    const createdNotificationIds: string[] = [];
+    // Track created notifications for cleanup
 
     beforeAll(async () => {
       // Create test notifications

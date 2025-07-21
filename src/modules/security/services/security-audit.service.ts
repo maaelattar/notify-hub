@@ -36,14 +36,14 @@ export class SecurityAuditService {
       const auditLog = new SecurityAuditLog();
 
       auditLog.eventType = eventData.eventType;
-      auditLog.apiKeyId = eventData.apiKeyId || null;
-      auditLog.hashedKey = eventData.hashedKey || null;
-      auditLog.ipAddress = eventData.ipAddress || null;
-      auditLog.userAgent = eventData.userAgent || null;
-      auditLog.requestId = eventData.requestId || null;
-      auditLog.organizationId = eventData.organizationId || null;
-      auditLog.metadata = eventData.metadata || null;
-      auditLog.message = eventData.message || null;
+      auditLog.apiKeyId = eventData.apiKeyId ?? null;
+      auditLog.hashedKey = eventData.hashedKey ?? null;
+      auditLog.ipAddress = eventData.ipAddress ?? null;
+      auditLog.userAgent = eventData.userAgent ?? null;
+      auditLog.requestId = eventData.requestId ?? null;
+      auditLog.organizationId = eventData.organizationId ?? null;
+      auditLog.metadata = eventData.metadata ?? null;
+      auditLog.message = eventData.message ?? null;
 
       await this.auditRepository.save(auditLog);
 
@@ -287,7 +287,7 @@ export class SecurityAuditService {
       invalidAttempts,
       rateLimitExceeded,
       expiredKeyAttempts,
-      uniqueIPs: parseInt(ipResults?.count || '0', 10),
+      uniqueIPs: parseInt(ipResults?.count ?? '0', 10),
     };
   }
 }

@@ -6,7 +6,6 @@ import { SecurityAuditService, AuditEventData } from './security-audit.service';
 import {
   SecurityAuditLog,
   SecurityEventType,
-  SecurityEventMetadata,
 } from '../entities/security-audit.entity';
 import { MockFactory } from '../../../test/test-utils';
 import { randomUUID } from 'crypto';
@@ -575,7 +574,6 @@ describe('SecurityAuditService - Security Tests', () => {
       });
 
       // Verify time window calculation
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
       expect(auditRepository.count).toHaveBeenCalledWith({
         where: {
           eventType: SecurityEventType.INVALID_API_KEY_ATTEMPT,

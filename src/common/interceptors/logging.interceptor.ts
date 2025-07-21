@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { RequestWithCorrelationId } from '../../modules/security/middleware/correlation-id.middleware';
 
 @Injectable()
@@ -21,8 +21,8 @@ export class LoggingInterceptor implements NestInterceptor {
 
     const method = req.method;
     const url = req.url;
-    const userAgent = req.get('User-Agent') || '';
-    const ip = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent') ?? '';
+    const ip = req.ip ?? req.socket.remoteAddress;
     const correlationId = req.correlationId;
 
     const requestLog = {

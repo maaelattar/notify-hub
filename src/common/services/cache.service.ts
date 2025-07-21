@@ -107,7 +107,7 @@ export class CacheService implements OnModuleDestroy {
     options: CacheOptions = {},
   ): Promise<boolean> {
     const fullKey = this.buildKey(key, options.namespace);
-    const ttl = options.ttl || this.defaultTtl;
+    const ttl = options.ttl ?? this.defaultTtl;
 
     try {
       const start = Date.now();
@@ -241,7 +241,7 @@ export class CacheService implements OnModuleDestroy {
       for (const entry of entries) {
         const fullKey = this.buildKey(entry.key, options.namespace);
         const serialized = this.serialize(entry.value, options.compress);
-        const ttl = entry.ttl || options.ttl || this.defaultTtl;
+        const ttl = entry.ttl ?? options.ttl ?? this.defaultTtl;
 
         pipeline.setex(fullKey, ttl, serialized);
       }
@@ -383,8 +383,14 @@ export class CacheService implements OnModuleDestroy {
         ? parseInt(connectionsInfo.split(':')[1])
         : 0;
 
-      const status =
-        latency < 100 ? 'healthy' : latency < 500 ? 'degraded' : 'down';
+      let status: string;
+      if (latency < 100) {
+        status = 'healthy';
+      } else if (latency < 500) {
+        status = 'degraded';
+      } else {
+        status = 'down';
+      }
 
       return {
         status,

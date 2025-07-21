@@ -1,11 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { EventHandler } from '../../../common/events/domain-events';
 import {
+  EventHandler,
   NotificationCreatedEvent,
   NotificationSentEvent,
   NotificationFailedEvent,
   NotificationDeliveredEvent,
-  NotificationCancelledEvent,
 } from '../../../common/events/domain-events';
 import { RedisMetricsService } from '../../monitoring/services/redis-metrics.service';
 

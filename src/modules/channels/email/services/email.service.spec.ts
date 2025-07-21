@@ -6,7 +6,6 @@ import * as EmailValidator from 'email-validator';
 
 import { EmailService } from './email.service';
 import { EmailOptions } from '../interfaces/email.interface';
-import { Notification } from '../../../notifications/entities/notification.entity';
 
 import { TestDataBuilder } from '../../../../test/test-utils';
 

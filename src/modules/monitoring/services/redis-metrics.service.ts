@@ -246,7 +246,7 @@ export class RedisMetricsService {
         const failedResult = results[i + 1];
         const processingTimesResult = results[i + 2];
 
-        if (sentResult && sentResult[1]) {
+        if (sentResult?.[1]) {
           const sentData = sentResult[1] as Record<string, string>;
           this.aggregateMetrics(
             sentData,
@@ -254,10 +254,10 @@ export class RedisMetricsService {
             priorityBreakdown,
             'sent',
           );
-          totalSent += parseInt(sentData.total || '0', 10);
+          totalSent += parseInt(sentData.total ?? '0', 10);
         }
 
-        if (failedResult && failedResult[1]) {
+        if (failedResult?.[1]) {
           const failedData = failedResult[1] as Record<string, string>;
           this.aggregateMetrics(
             failedData,
@@ -265,10 +265,10 @@ export class RedisMetricsService {
             priorityBreakdown,
             'failed',
           );
-          totalFailed += parseInt(failedData.total || '0', 10);
+          totalFailed += parseInt(failedData.total ?? '0', 10);
         }
 
-        if (processingTimesResult && processingTimesResult[1]) {
+        if (processingTimesResult?.[1]) {
           const times = (processingTimesResult[1] as string[])
             .map((t) => parseInt(t, 10))
             .filter((t) => !isNaN(t));
@@ -351,7 +351,7 @@ export class RedisMetricsService {
     try {
       const redis = this.getClient();
       const value = await redis.get(`counter:${counterName}`);
-      return parseInt(value || '0', 10);
+      return parseInt(value ?? '0', 10);
     } catch (error) {
       this.logger.error(`Failed to get counter ${counterName}`, {
         error: error instanceof Error ? error.message : 'Unknown error',

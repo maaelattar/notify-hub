@@ -59,7 +59,5 @@ process.on('uncaughtException', (error) => {
 });
 
 // Configure supertest defaults
-import * as request from 'supertest';
-
 // You can configure default supertest settings here if needed
 // For example, default headers, timeouts, etc.

@@ -5,8 +5,10 @@ import { CacheService } from '../../../common/services/cache.service';
 import { RedisMetricsService } from '../services/redis-metrics.service';
 import { EventBusService } from '../../events/event-bus.service';
 
+export type HealthStatus = 'healthy' | 'degraded' | 'down';
+
 export interface HealthCheckResult {
-  status: 'healthy' | 'degraded' | 'down';
+  status: HealthStatus;
   timestamp: Date;
   duration: number; // milliseconds
   details?: Record<string, any>;
@@ -14,7 +16,7 @@ export interface HealthCheckResult {
 }
 
 export interface SystemHealthReport {
-  status: 'healthy' | 'degraded' | 'down';
+  status: HealthStatus;
   timestamp: Date;
   version: string;
   uptime: number; // seconds
@@ -201,7 +203,7 @@ export class AdvancedHealthService {
 
       const duration = Date.now() - startTime;
 
-      let status: 'healthy' | 'degraded' | 'down' = 'healthy';
+      let status: HealthStatus = 'healthy';
       if (duration > 1000) {
         status = 'degraded';
       } else if (duration > 5000) {
@@ -215,7 +217,7 @@ export class AdvancedHealthService {
         details: {
           writeLatency,
           isConnected: this.dataSource.isInitialized,
-          poolSize: poolStatus?.options?.connectionLimit || 'unknown',
+          poolSize: poolStatus?.options?.connectionLimit ?? 'unknown',
         },
       };
     } catch (error) {
@@ -288,10 +290,8 @@ export class AdvancedHealthService {
       const duration = Date.now() - startTime;
 
       // Determine status based on queue health
-      let status: 'healthy' | 'degraded' | 'down' = 'healthy';
-      if (queueMetrics.pendingJobs > 1000) {
-        status = 'degraded';
-      } else if (queueMetrics.failedJobs > 100) {
+      let status: HealthStatus = 'healthy';
+      if (queueMetrics.pendingJobs > 1000 || queueMetrics.failedJobs > 100) {
         status = 'degraded';
       }
 
@@ -385,7 +385,7 @@ export class AdvancedHealthService {
       ).length;
       const totalChecks = dependencyChecks.length;
 
-      let status: 'healthy' | 'degraded' | 'down' = 'healthy';
+      let status: HealthStatus = 'healthy';
       if (failedChecks > 0 && failedChecks < totalChecks) {
         status = 'degraded';
       } else if (failedChecks === totalChecks && totalChecks > 0) {
@@ -487,9 +487,7 @@ export class AdvancedHealthService {
   /**
    * Determine overall system status
    */
-  private determineOverallStatus(
-    componentStatuses: string[],
-  ): 'healthy' | 'degraded' | 'down' {
+  private determineOverallStatus(componentStatuses: string[]): HealthStatus {
     const downComponents = componentStatuses.filter(
       (status) => status === 'down',
     ).length;
@@ -528,6 +526,10 @@ export class AdvancedHealthService {
         timestamp: new Date(),
       };
     } catch (error) {
+      this.logger.error('Simple health check failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      
       return {
         status: 'down',
         timestamp: new Date(),
