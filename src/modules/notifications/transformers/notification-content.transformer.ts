@@ -21,13 +21,16 @@ export class NotificationContentTransformer implements ValueTransformer {
       // Serialize the value object to JSON for database storage
       return JSON.stringify(content.toJSON());
     } catch (error) {
-      this.logger.error('Failed to serialize NotificationContent for database storage', {
-        error: error instanceof Error ? error.message : error,
-        contentPreview: content.getPreview(100), // Safe preview for logging
-        format: content.getFormat(),
-        characterCount: content.getCharacterCount(),
-      });
-      
+      this.logger.error(
+        'Failed to serialize NotificationContent for database storage',
+        {
+          error: error instanceof Error ? error.message : error,
+          contentPreview: content.getPreview(100), // Safe preview for logging
+          format: content.getFormat(),
+          characterCount: content.getCharacterCount(),
+        },
+      );
+
       // Fallback to raw value to prevent data loss
       return content.getValue();
     }
@@ -44,11 +47,11 @@ export class NotificationContentTransformer implements ValueTransformer {
     try {
       // Try to parse as JSON first (new format)
       const parsed = JSON.parse(databaseValue);
-      
+
       if (parsed.value && parsed.metadata) {
         return NotificationContent.fromJSON(parsed);
       }
-      
+
       // Fallback: treat as raw value (legacy format)
       return this.createFromLegacyFormat(parsed.value || databaseValue);
     } catch (parseError) {
@@ -56,11 +59,14 @@ export class NotificationContentTransformer implements ValueTransformer {
       try {
         return this.createFromLegacyFormat(databaseValue);
       } catch (error) {
-        this.logger.error('Failed to deserialize NotificationContent from database', {
-          error: error instanceof Error ? error.message : error,
-          databaseValuePreview: databaseValue.substring(0, 100), // Truncate for logging
-        });
-        
+        this.logger.error(
+          'Failed to deserialize NotificationContent from database',
+          {
+            error: error instanceof Error ? error.message : error,
+            databaseValuePreview: databaseValue.substring(0, 100), // Truncate for logging
+          },
+        );
+
         // Return null to prevent application crash
         return null;
       }
@@ -100,11 +106,14 @@ export class SimpleContentTransformer implements ValueTransformer {
     try {
       return NotificationContent.create(databaseValue);
     } catch (error) {
-      this.logger.warn('Failed to create NotificationContent from database value', {
-        error: error instanceof Error ? error.message : error,
-        databaseValuePreview: databaseValue.substring(0, 100),
-      });
-      
+      this.logger.warn(
+        'Failed to create NotificationContent from database value',
+        {
+          error: error instanceof Error ? error.message : error,
+          databaseValuePreview: databaseValue.substring(0, 100),
+        },
+      );
+
       return null;
     }
   }

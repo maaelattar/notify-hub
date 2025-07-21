@@ -7,6 +7,7 @@ import { NotificationService } from './notification.service';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationProducer } from './notification.producer';
 import { NotificationValidatorService } from './notification-validator.service';
+import { NotificationOrchestrationService } from './notification-orchestration.service';
 import { Notification } from '../entities/notification.entity';
 import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationPriority } from '../enums/notification-priority.enum';
@@ -20,6 +21,7 @@ import {
   TestAssertions,
   TestDateUtils,
 } from '../../../test/test-utils';
+import { Pagination } from '../../../common/value-objects/pagination.vo';
 
 describe('NotificationService', () => {
   let service: NotificationService;
@@ -30,6 +32,7 @@ describe('NotificationService', () => {
   let mockEntityManager: jest.Mocked<EntityManager>;
   let mockRepository: jest.Mocked<Repository<Notification>>;
   let mockValidatorService: jest.Mocked<NotificationValidatorService>;
+  let mockOrchestrationService: jest.Mocked<NotificationOrchestrationService>;
 
   const mockConfig = {
     maxRetries: 3,
@@ -63,6 +66,13 @@ describe('NotificationService', () => {
     mockValidatorService = {
       validate: jest.fn(),
       validateWithCategories: jest.fn(),
+    } as any;
+
+    mockOrchestrationService = {
+      createNotification: jest.fn(),
+      updateNotification: jest.fn(),
+      cancelNotification: jest.fn(),
+      retryNotification: jest.fn(),
     } as any;
 
     mockRepository = MockFactory.createMockRepository<Notification>();
@@ -102,6 +112,10 @@ describe('NotificationService', () => {
           provide: NotificationValidatorService,
           useValue: mockValidatorService,
         },
+        {
+          provide: NotificationOrchestrationService,
+          useValue: mockOrchestrationService,
+        },
       ],
     }).compile();
 
@@ -138,37 +152,30 @@ describe('NotificationService', () => {
         warningErrors: [],
         allErrors: [],
       });
-      mockRepository.save.mockResolvedValue(savedNotification);
-      mockNotificationProducer.addNotificationJob.mockResolvedValue('job-123');
-      mockNotificationRepository.updateStatus.mockResolvedValue(undefined);
+
+      // Mock orchestration service to return created notification
+      mockOrchestrationService.createNotification.mockResolvedValue(
+        savedNotification,
+      );
 
       // Act
       const result = await service.create(createDto);
 
-      // Assert
-      expect(mockDataSource.transaction).toHaveBeenCalled();
-      expect(mockRepository.save).toHaveBeenCalledWith({
-        channel: createDto.channel,
-        // Legacy fields for backward compatibility
-        recipient: createDto.recipient,
-        subject: createDto.subject,
-        content: createDto.content,
-        // New value object fields
-        recipientVO: expect.any(Object),
-        contentVO: expect.any(Object),
-        metadata: {},
-        scheduledFor: null,
-        status: NotificationStatus.CREATED,
-      });
-      expect(mockNotificationProducer.addNotificationJob).toHaveBeenCalledWith(
-        savedNotification.id,
+      // Assert - Orchestration service should be called with prepared data
+      expect(mockOrchestrationService.createNotification).toHaveBeenCalledWith(
+        {
+          channel: createDto.channel,
+          // Legacy fields for backward compatibility
+          recipient: createDto.recipient,
+          subject: createDto.subject,
+          content: createDto.content,
+          // New value object fields
+          recipientVO: expect.any(Object),
+          contentVO: expect.any(Object),
+          metadata: {},
+          scheduledFor: null,
+        },
         NotificationPriority.NORMAL,
-        undefined,
-        savedNotification.metadata,
-      );
-      expect(mockNotificationRepository.updateStatus).toHaveBeenCalledWith(
-        savedNotification.id,
-        NotificationStatus.QUEUED,
       );
 
       TestAssertions.assertNotificationResponse(result, {
@@ -230,7 +237,7 @@ describe('NotificationService', () => {
           context: { channel: createDto.channel },
         },
       ];
-      
+
       mockValidatorService.validateWithCategories.mockResolvedValue({
         isValid: false,
         criticalErrors: validationErrors,
@@ -251,7 +258,7 @@ describe('NotificationService', () => {
     it('should handle value object creation errors gracefully and continue with legacy fields', async () => {
       // Arrange
       const createDto = TestDataBuilder.createNotificationDto({
-        recipient: 'invalid<script>recipient',  // Invalid recipient that would fail value object creation
+        recipient: 'invalid<script>recipient', // Invalid recipient that would fail value object creation
         content: 'Test content',
       });
 
@@ -281,13 +288,13 @@ describe('NotificationService', () => {
         recipient: createDto.recipient,
         subject: createDto.subject,
         content: createDto.content,
-        recipientVO: null,  // Should be null when value object creation fails
-        contentVO: null,    // Should be null when value object creation fails
+        recipientVO: null, // Should be null when value object creation fails
+        contentVO: null, // Should be null when value object creation fails
         metadata: {},
         scheduledFor: null,
         status: NotificationStatus.CREATED,
       });
-      
+
       expect(result).toBeDefined();
     });
   });
@@ -366,15 +373,14 @@ describe('NotificationService', () => {
           }),
         ),
         25,
-        1,
-        20,
+        new Pagination(1, 20),
       );
     });
 
     it('should respect max page size limit', async () => {
       // Arrange
       const filters = new NotificationFilterDto();
-      filters.limit = 500; // Exceeds max page size
+      filters.pagination = new Pagination(1, 500); // Exceeds max page size
 
       mockNotificationRepository.findAll.mockResolvedValue({
         data: [],
@@ -517,7 +523,9 @@ describe('NotificationService', () => {
         content: updateDto.content,
       });
 
-      mockNotificationRepository.findById.mockResolvedValue(existingNotification);
+      mockNotificationRepository.findById.mockResolvedValue(
+        existingNotification,
+      );
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
       mockRepository.findOne.mockResolvedValue(updatedNotification);
 
@@ -527,9 +535,9 @@ describe('NotificationService', () => {
       // Assert - Should continue with legacy content field and null contentVO
       expect(mockRepository.update).toHaveBeenCalledWith(notificationId, {
         content: updateDto.content,
-        contentVO: null,  // Should be null when value object creation fails
+        contentVO: null, // Should be null when value object creation fails
       });
-      
+
       expect(result).toBeDefined();
     });
 

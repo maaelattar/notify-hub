@@ -2,30 +2,21 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RedisMetricsService } from './redis-metrics.service';
 import { RedisProvider } from '../providers/redis.provider';
 import { NotificationPriority } from '../../notifications/enums/notification-priority.enum';
+import {
+  MockFactory,
+  MockRedisClient,
+  MockRedisProvider,
+} from '../../../test/mock-types';
 
 describe('RedisMetricsService', () => {
   let service: RedisMetricsService;
-  let mockRedisClient: any;
+  let mockRedisClient: MockRedisClient;
+  let mockRedisProvider: MockRedisProvider;
 
   beforeEach(async () => {
-    mockRedisClient = {
-      pipeline: jest.fn().mockReturnValue({
-        hincrby: jest.fn().mockReturnThis(),
-        expire: jest.fn().mockReturnThis(),
-        lpush: jest.fn().mockReturnThis(),
-        ltrim: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue([]),
-      }),
-      hgetall: jest.fn(),
-      llen: jest.fn(),
-      lrange: jest.fn(),
-      exists: jest.fn(),
-    };
-
-    const mockRedisProvider = {
-      getClient: jest.fn().mockReturnValue(mockRedisClient),
-      ping: jest.fn().mockResolvedValue('PONG'),
-    };
+    mockRedisClient = MockFactory.createMockRedisClient();
+    mockRedisProvider = MockFactory.createMockRedisProvider();
+    mockRedisProvider.getClient.mockReturnValue(mockRedisClient);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -46,7 +37,11 @@ describe('RedisMetricsService', () => {
 
   describe('recordNotificationSent', () => {
     it('should record a sent notification', async () => {
-      await service.recordNotificationSent('email', NotificationPriority.HIGH, 150);
+      await service.recordNotificationSent(
+        'email',
+        NotificationPriority.HIGH,
+        150,
+      );
 
       expect(mockRedisClient.pipeline).toHaveBeenCalled();
       const pipeline = mockRedisClient.pipeline();
@@ -64,14 +59,19 @@ describe('RedisMetricsService', () => {
         exec: jest.fn().mockRejectedValue(new Error('Redis error')),
       });
 
-      await expect(service.recordNotificationSent('email', NotificationPriority.HIGH, 150))
-        .resolves.not.toThrow();
+      await expect(
+        service.recordNotificationSent('email', NotificationPriority.HIGH, 150),
+      ).resolves.not.toThrow();
     });
   });
 
   describe('recordNotificationFailed', () => {
     it('should record a failed notification', async () => {
-      await service.recordNotificationFailed(NotificationPriority.NORMAL, 'Connection timeout', 'sms');
+      await service.recordNotificationFailed(
+        NotificationPriority.NORMAL,
+        'Connection timeout',
+        'sms',
+      );
 
       expect(mockRedisClient.pipeline).toHaveBeenCalled();
       const pipeline = mockRedisClient.pipeline();
@@ -84,9 +84,17 @@ describe('RedisMetricsService', () => {
     it('should return overall statistics', async () => {
       // Mock Redis responses for multiple calls
       mockRedisClient.hgetall
-        .mockResolvedValue({ total: '10', 'channel:email': '8', 'priority:HIGH': '5' })
-        .mockResolvedValue({ total: '2', 'channel:email': '1', 'priority:HIGH': '1' });
-      
+        .mockResolvedValue({
+          total: '10',
+          'channel:email': '8',
+          'priority:HIGH': '5',
+        })
+        .mockResolvedValue({
+          total: '2',
+          'channel:email': '1',
+          'priority:HIGH': '1',
+        });
+
       mockRedisClient.llen.mockResolvedValue(3);
       mockRedisClient.lrange.mockResolvedValue(['100', '150', '200']);
 
@@ -130,12 +138,13 @@ describe('RedisMetricsService', () => {
 
   describe('resetMetrics', () => {
     it('should clear all metrics', async () => {
-      mockRedisClient.keys = jest.fn()
+      mockRedisClient.keys = jest
+        .fn()
         .mockResolvedValueOnce(['metrics:2024-01-01-10:sent'])
         .mockResolvedValueOnce(['metrics:2024-01-01-10:failed'])
         .mockResolvedValueOnce(['processing_times:2024-01-01-10']);
       mockRedisClient.del = jest.fn().mockResolvedValue(3);
-      
+
       await service.resetMetrics();
 
       expect(mockRedisClient.keys).toHaveBeenCalledTimes(3);
@@ -149,7 +158,7 @@ describe('RedisMetricsService', () => {
         getClient: jest.fn().mockReturnValue(mockRedisClient),
         ping: jest.fn().mockResolvedValue('PONG'),
       };
-      
+
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           RedisMetricsService,
@@ -157,7 +166,8 @@ describe('RedisMetricsService', () => {
         ],
       }).compile();
 
-      const healthService = module.get<RedisMetricsService>(RedisMetricsService);
+      const healthService =
+        module.get<RedisMetricsService>(RedisMetricsService);
       const health = await healthService.healthCheck();
 
       expect(health).toBeDefined();

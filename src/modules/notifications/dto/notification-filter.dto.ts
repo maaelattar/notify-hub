@@ -2,15 +2,14 @@ import {
   IsEnum,
   IsOptional,
   IsString,
-  IsInt,
-  Min,
-  Max,
   IsDateString,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationChannel } from '../enums/notification-channel.enum';
+import { Pagination } from '../../../common/value-objects/pagination.vo';
 
 export class NotificationFilterDto {
   @ApiPropertyOptional({ enum: NotificationStatus })
@@ -38,20 +37,11 @@ export class NotificationFilterDto {
   @IsDateString()
   toDate?: string;
 
-  @ApiPropertyOptional({ minimum: 1, default: 1 })
+  @ApiPropertyOptional({ type: Pagination })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
-
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 20 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit?: number = 20;
+  @ValidateNested()
+  @Type(() => Pagination)
+  pagination?: Pagination = new Pagination();
 
   @ApiPropertyOptional({
     enum: ['createdAt', 'updatedAt', 'status'],

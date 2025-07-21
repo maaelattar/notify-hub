@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue, JobOptions, Job } from 'bull';
 import { NotificationPriority } from '../enums/notification-priority.enum';
+import { APP_CONSTANTS } from '../../../common/constants/app.constants';
 
 export interface NotificationJobData {
   notificationId: string;
@@ -240,20 +241,20 @@ export class NotificationProducer {
         type: 'exponential',
         delay: this.getBackoffDelay(priority),
       },
-      timeout: 30000, // 30 seconds timeout
+      timeout: APP_CONSTANTS.QUEUE.DEFAULT_JOB_TIMEOUT, // 30 seconds timeout
     };
 
     // Add priority-specific options
     switch (priority) {
       case NotificationPriority.HIGH:
-        baseOptions.priority = 1; // Lower number = higher priority
+        baseOptions.priority = APP_CONSTANTS.QUEUE.HIGH_PRIORITY_VALUE; // Lower number = higher priority
         baseOptions.lifo = true; // Last in, first out for high priority
         break;
       case NotificationPriority.LOW:
-        baseOptions.priority = 10;
+        baseOptions.priority = APP_CONSTANTS.QUEUE.LOW_PRIORITY_VALUE;
         break;
       default:
-        baseOptions.priority = 5;
+        baseOptions.priority = APP_CONSTANTS.QUEUE.NORMAL_PRIORITY_VALUE;
     }
 
     // Add delay for scheduled notifications
@@ -282,11 +283,11 @@ export class NotificationProducer {
   private getBackoffDelay(priority: NotificationPriority): number {
     switch (priority) {
       case NotificationPriority.HIGH:
-        return 1000; // 1 second initial delay
+        return APP_CONSTANTS.QUEUE.HIGH_PRIORITY_BACKOFF; // 1 second initial delay
       case NotificationPriority.LOW:
-        return 5000; // 5 seconds initial delay
+        return APP_CONSTANTS.QUEUE.LOW_PRIORITY_BACKOFF; // 5 seconds initial delay
       default:
-        return 2000; // 2 seconds initial delay
+        return APP_CONSTANTS.QUEUE.NORMAL_PRIORITY_BACKOFF; // 2 seconds initial delay
     }
   }
 }

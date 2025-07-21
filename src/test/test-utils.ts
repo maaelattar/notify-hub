@@ -8,7 +8,15 @@ import { NotificationPriority } from '../modules/notifications/enums/notificatio
 import { CreateNotificationDto } from '../modules/notifications/dto/create-notification.dto';
 import { NotificationResponseDto } from '../modules/notifications/dto/notification-response.dto';
 import { PaginatedResponseDto } from '../modules/notifications/dto/paginated-response.dto';
+import { Pagination } from '../common/value-objects/pagination.vo';
 import { randomUUID } from 'crypto';
+import {
+  MockNotificationService,
+  MockNotificationProducer,
+  MockBullQueue,
+  MockLogger,
+  MockRepository,
+} from './mock-types';
 
 /**
  * Test data builder for creating notification entities and DTOs
@@ -88,22 +96,16 @@ export class TestDataBuilder {
    */
   static createPaginatedResponse<T>(
     data: T[],
-    overrides: Partial<PaginatedResponseDto<T>> = {},
+    options: {
+      total?: number;
+      page?: number;
+      limit?: number;
+    } = {},
   ): PaginatedResponseDto<T> {
-    const total = overrides.total || data.length;
-    const page = overrides.page || 1;
-    const limit = overrides.limit || 20;
-    const totalPages = Math.ceil(total / limit);
+    const total = options.total || data.length;
+    const pagination = new Pagination(options.page || 1, options.limit || 20);
 
-    return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages,
-      hasNext: page < totalPages,
-      hasPrevious: page > 1,
-    };
+    return new PaginatedResponseDto(data, total, pagination);
   }
 
   /**
@@ -198,7 +200,7 @@ export class MockFactory {
   /**
    * Creates a mock notification service
    */
-  static createMockNotificationService() {
+  static createMockNotificationService(): MockNotificationService {
     return {
       create: jest.fn(),
       findAll: jest.fn(),
@@ -213,10 +215,10 @@ export class MockFactory {
   /**
    * Creates a mock notification producer service
    */
-  static createMockNotificationProducer() {
+  static createMockNotificationProducer(): MockNotificationProducer {
     return {
       addNotificationJob: jest.fn(),
-      removeJob: jest.fn(),
+      removeNotificationJob: jest.fn(),
       getJobStatus: jest.fn(),
       getQueueHealth: jest.fn(),
     };
@@ -225,7 +227,7 @@ export class MockFactory {
   /**
    * Creates a mock queue service
    */
-  static createMockQueueService() {
+  static createMockQueueService(): MockBullQueue {
     return {
       add: jest.fn(),
       getJob: jest.fn(),
@@ -253,7 +255,7 @@ export class MockFactory {
   /**
    * Creates a mock logger
    */
-  static createMockLogger() {
+  static createMockLogger(): MockLogger {
     return {
       log: jest.fn(),
       error: jest.fn(),
@@ -330,16 +332,17 @@ export class TestAssertions {
     actual: PaginatedResponseDto<T>,
     expectedData: T[],
     expectedTotal: number,
-    expectedPage: number = 1,
-    expectedLimit: number = 20,
+    expectedPagination: Pagination = new Pagination(),
   ): void {
     expect(actual.data).toEqual(expectedData);
     expect(actual.total).toBe(expectedTotal);
-    expect(actual.page).toBe(expectedPage);
-    expect(actual.limit).toBe(expectedLimit);
-    expect(actual.totalPages).toBe(Math.ceil(expectedTotal / expectedLimit));
-    expect(actual.hasNext).toBe(expectedPage < actual.totalPages);
-    expect(actual.hasPrevious).toBe(expectedPage > 1);
+    expect(actual.page).toBe(expectedPagination.page);
+    expect(actual.limit).toBe(expectedPagination.limit);
+    expect(actual.totalPages).toBe(
+      expectedPagination.calculateTotalPages(expectedTotal),
+    );
+    expect(actual.hasNext).toBe(expectedPagination.hasNext(expectedTotal));
+    expect(actual.hasPrevious).toBe(expectedPagination.hasPrevious());
   }
 
   /**

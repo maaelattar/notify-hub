@@ -7,7 +7,10 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { SecureApiKeyService, ApiKeyValidationResult } from '../services/secure-api-key.service';
+import {
+  SecureApiKeyService,
+  ApiKeyValidationResult,
+} from '../services/secure-api-key.service';
 import { ApiKey } from '../entities/api-key.entity';
 
 // Extended Request interface to include API key metadata
@@ -52,7 +55,7 @@ export class SecureApiKeyGuard implements CanActivate {
     );
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    
+
     // Extract request metadata
     const ipAddress = this.getClientIp(request);
     const userAgent = request.headers['user-agent'] || 'unknown';
@@ -70,19 +73,21 @@ export class SecureApiKeyGuard implements CanActivate {
         throw new UnauthorizedException({
           error: 'API key required',
           code: 'MISSING_API_KEY',
-          message: 'Please provide a valid API key in the X-API-Key header or api_key query parameter',
+          message:
+            'Please provide a valid API key in the X-API-Key header or api_key query parameter',
         });
       }
 
       // Validate API key with comprehensive security checks
-      const validationResult: ApiKeyValidationResult = await this.secureApiKeyService.validateApiKey(
-        apiKey,
-        ipAddress,
-        userAgent,
-        requestId,
-        endpoint,
-        requiredScope,
-      );
+      const validationResult: ApiKeyValidationResult =
+        await this.secureApiKeyService.validateApiKey(
+          apiKey,
+          ipAddress,
+          userAgent,
+          requestId,
+          endpoint,
+          requiredScope,
+        );
 
       if (!validationResult.valid) {
         this.logger.warn(
@@ -101,7 +106,11 @@ export class SecureApiKeyGuard implements CanActivate {
       }
 
       // Attach API key metadata to request for use in controllers
-      this.attachApiKeyMetadata(request, validationResult.apiKey!, validationResult.rateLimitInfo);
+      this.attachApiKeyMetadata(
+        request,
+        validationResult.apiKey!,
+        validationResult.rateLimitInfo,
+      );
 
       this.logger.debug(
         `API key validation successful for ${validationResult.apiKey!.name}`,
@@ -118,16 +127,13 @@ export class SecureApiKeyGuard implements CanActivate {
         throw error;
       }
 
-      this.logger.error(
-        'Unexpected error during API key validation',
-        {
-          error: error instanceof Error ? error.message : error,
-          ipAddress,
-          userAgent,
-          requestId,
-          endpoint,
-        },
-      );
+      this.logger.error('Unexpected error during API key validation', {
+        error: error instanceof Error ? error.message : error,
+        ipAddress,
+        userAgent,
+        requestId,
+        endpoint,
+      });
 
       throw new UnauthorizedException({
         error: 'Authentication failed',
@@ -190,7 +196,9 @@ export class SecureApiKeyGuard implements CanActivate {
     };
   }
 
-  private createUnauthorizedException(validationResult: ApiKeyValidationResult): UnauthorizedException {
+  private createUnauthorizedException(
+    validationResult: ApiKeyValidationResult,
+  ): UnauthorizedException {
     switch (validationResult.reason) {
       case 'Invalid API key format':
         return new UnauthorizedException({
@@ -217,7 +225,8 @@ export class SecureApiKeyGuard implements CanActivate {
         return new UnauthorizedException({
           error: 'Insufficient permissions',
           code: 'INSUFFICIENT_PERMISSIONS',
-          message: 'The API key does not have the required permissions for this operation',
+          message:
+            'The API key does not have the required permissions for this operation',
         });
 
       case 'Rate limit exceeded':
@@ -242,4 +251,5 @@ export class SecureApiKeyGuard implements CanActivate {
 import { SetMetadata } from '@nestjs/common';
 
 export const RequireApiKey = () => SetMetadata('requireApiKey', true);
-export const RequireScope = (scope: string) => SetMetadata('requireScope', scope);
+export const RequireScope = (scope: string) =>
+  SetMetadata('requireScope', scope);

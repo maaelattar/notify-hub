@@ -11,6 +11,7 @@ import {
 } from './common/middleware/correlation-id.middleware';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ApiVersionInterceptor } from './common/interceptors/api-version.interceptor';
+import { APP_CONSTANTS } from './common/constants/app.constants';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -26,7 +27,7 @@ async function bootstrap() {
 
   // Enable CORS with production-ready settings
   const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [
-    'http://localhost:3000',
+    APP_CONSTANTS.SERVER.LOCAL_BASE_URL,
   ];
   app.enableCors({
     origin: (
@@ -58,7 +59,7 @@ async function bootstrap() {
       'X-API-Version',
       'X-Idempotent-Replayed',
     ],
-    maxAge: 86400, // 24 hours
+    maxAge: APP_CONSTANTS.TIME_SECONDS.DAY, // 24 hours
   });
 
   // Global validation pipe
@@ -104,7 +105,7 @@ async function bootstrap() {
       All errors follow a consistent format with machine-readable codes.
     `,
     )
-    .setVersion('1.0')
+    .setVersion(APP_CONSTANTS.SERVER.API_VERSION)
     .addTag('notifications', 'Notification management endpoints')
     .addTag('health', 'Health check endpoints')
     .addBearerAuth({
@@ -121,7 +122,7 @@ async function bootstrap() {
     })
     .addServer('https://api.notifyhub.com', 'Production')
     .addServer('https://staging-api.notifyhub.com', 'Staging')
-    .addServer('http://localhost:3000', 'Development')
+    .addServer(APP_CONSTANTS.SERVER.LOCAL_BASE_URL, 'Development')
     .setExternalDoc('API Documentation', 'https://docs.notifyhub.com')
     .setLicense('MIT', 'https://opensource.org/licenses/MIT')
     .setContact(
@@ -134,7 +135,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || APP_CONSTANTS.SERVER.DEFAULT_PORT;
   await app.listen(port);
 
   console.log(`NotifyHub API running on http://localhost:${port}`);

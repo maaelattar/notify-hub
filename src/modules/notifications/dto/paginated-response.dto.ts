@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Pagination } from '../../../common/value-objects/pagination.vo';
 
 export class PaginatedResponseDto<T> {
   @ApiProperty({
@@ -43,22 +44,21 @@ export class PaginatedResponseDto<T> {
   })
   hasPrevious: boolean;
 
-  constructor(data: T[], total: number, page: number, limit: number) {
+  constructor(data: T[], total: number, pagination: Pagination) {
     this.data = data;
     this.total = total;
-    this.page = page;
-    this.limit = limit;
-    this.totalPages = Math.ceil(total / limit);
-    this.hasNext = page < this.totalPages;
-    this.hasPrevious = page > 1;
+    this.page = pagination.page;
+    this.limit = pagination.limit;
+    this.totalPages = pagination.calculateTotalPages(total);
+    this.hasNext = pagination.hasNext(total);
+    this.hasPrevious = pagination.hasPrevious();
   }
 
   static create<T>(
     data: T[],
     total: number,
-    page: number,
-    limit: number,
+    pagination: Pagination,
   ): PaginatedResponseDto<T> {
-    return new PaginatedResponseDto(data, total, page, limit);
+    return new PaginatedResponseDto(data, total, pagination);
   }
 }

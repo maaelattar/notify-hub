@@ -95,8 +95,16 @@ describe('RedisMetricsService', () => {
 
     it('should accumulate multiple sent notifications', async () => {
       // Arrange & Act
-      await service.recordNotificationSent('email', NotificationPriority.NORMAL, 100);
-      await service.recordNotificationSent('email', NotificationPriority.HIGH, 200);
+      await service.recordNotificationSent(
+        'email',
+        NotificationPriority.NORMAL,
+        100,
+      );
+      await service.recordNotificationSent(
+        'email',
+        NotificationPriority.HIGH,
+        200,
+      );
       await service.recordNotificationSent('sms', NotificationPriority.LOW, 50);
 
       // Assert - Verify Redis operations were called
@@ -107,8 +115,15 @@ describe('RedisMetricsService', () => {
     it('should limit processing times to last 1000 entries', async () => {
       // Arrange & Act - Record many notifications
       const promises: Promise<void>[] = [];
-      for (let i = 0; i < 100; i++) { // Reduced for test performance
-        promises.push(service.recordNotificationSent('email', NotificationPriority.NORMAL, i));
+      for (let i = 0; i < 100; i++) {
+        // Reduced for test performance
+        promises.push(
+          service.recordNotificationSent(
+            'email',
+            NotificationPriority.NORMAL,
+            i,
+          ),
+        );
       }
       await Promise.all(promises);
 
@@ -125,7 +140,11 @@ describe('RedisMetricsService', () => {
       });
 
       // Act
-      await service.recordNotificationSent('email', NotificationPriority.NORMAL, 100);
+      await service.recordNotificationSent(
+        'email',
+        NotificationPriority.NORMAL,
+        100,
+      );
 
       // Assert
       expect(mockLogger.error).toHaveBeenCalledWith(
@@ -218,7 +237,15 @@ describe('RedisMetricsService', () => {
       // Arrange - Mock Redis pipeline exec results
       const mockPipeline = mockRedisClient.pipeline() as any;
       mockPipeline.exec.mockResolvedValue([
-        [null, { total: '2', 'channel:email': '2', 'priority:NORMAL': '1', 'priority:HIGH': '1' }], // sent data
+        [
+          null,
+          {
+            total: '2',
+            'channel:email': '2',
+            'priority:NORMAL': '1',
+            'priority:HIGH': '1',
+          },
+        ], // sent data
         [null, { total: '1', 'channel:sms': '1', 'priority:LOW': '1' }], // failed data
         [null, ['100', '200']], // processing times
       ]);
@@ -245,7 +272,11 @@ describe('RedisMetricsService', () => {
     it('should return zero metrics when no data recorded', async () => {
       // Arrange - Mock empty Redis results
       const mockPipeline = mockRedisClient.pipeline() as any;
-      mockPipeline.exec.mockResolvedValue([[null, null], [null, null], [null, []]]);
+      mockPipeline.exec.mockResolvedValue([
+        [null, null],
+        [null, null],
+        [null, []],
+      ]);
 
       // Act
       const metrics = await service.getMetrics();
@@ -354,7 +385,8 @@ describe('RedisMetricsService', () => {
     it('should limit processing times to last 1000 entries', async () => {
       // Arrange & Act - Record many successful deliveries
       const promises: Promise<void>[] = [];
-      for (let i = 0; i < 100; i++) { // Reduced for test performance
+      for (let i = 0; i < 100; i++) {
+        // Reduced for test performance
         promises.push(service.recordChannelDelivery('email', true, i));
       }
       await Promise.all(promises);
@@ -385,7 +417,8 @@ describe('RedisMetricsService', () => {
   describe('resetMetrics', () => {
     it('should reset all metrics by deleting Redis keys', async () => {
       // Arrange - Mock Redis keys and del operations
-      mockRedisClient.keys.mockResolvedValueOnce(['metrics:2025-01-01-12:sent'])
+      mockRedisClient.keys
+        .mockResolvedValueOnce(['metrics:2025-01-01-12:sent'])
         .mockResolvedValueOnce(['metrics:2025-01-01-12:failed'])
         .mockResolvedValueOnce(['processing_times:2025-01-01-12']);
       mockRedisClient.del.mockResolvedValue(3);
@@ -398,14 +431,16 @@ describe('RedisMetricsService', () => {
       expect(mockRedisClient.del).toHaveBeenCalledWith(
         'metrics:2025-01-01-12:sent',
         'metrics:2025-01-01-12:failed',
-        'processing_times:2025-01-01-12'
+        'processing_times:2025-01-01-12',
       );
       expect(mockLogger.log).toHaveBeenCalledWith('Metrics reset successfully');
     });
 
     it('should handle Redis errors during reset', async () => {
       // Arrange - Simulate Redis error
-      mockRedisClient.keys.mockRejectedValue(new Error('Redis keys operation failed'));
+      mockRedisClient.keys.mockRejectedValue(
+        new Error('Redis keys operation failed'),
+      );
 
       // Act
       await service.resetMetrics();
@@ -463,7 +498,10 @@ describe('RedisMetricsService', () => {
         redis: false,
         metricsOperational: false,
       });
-      expect(mockLogger.error).toHaveBeenCalledWith('Health check failed:', expect.any(Error));
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Health check failed:',
+        expect.any(Error),
+      );
     });
   });
 });

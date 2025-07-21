@@ -25,7 +25,7 @@ export class RecipientTransformer implements ValueTransformer {
         error: error instanceof Error ? error.message : error,
         recipientValue: recipient.getMaskedValue(), // Use masked value for security
       });
-      
+
       // Fallback to raw value to prevent data loss
       return recipient.getValue();
     }
@@ -42,11 +42,11 @@ export class RecipientTransformer implements ValueTransformer {
     try {
       // Try to parse as JSON first (new format)
       const parsed = JSON.parse(databaseValue);
-      
+
       if (parsed.value && parsed.metadata) {
         return Recipient.fromJSON(parsed);
       }
-      
+
       // Fallback: treat as raw value (legacy format)
       return this.createFromLegacyFormat(parsed.value || databaseValue);
     } catch (parseError) {
@@ -58,7 +58,7 @@ export class RecipientTransformer implements ValueTransformer {
           error: error instanceof Error ? error.message : error,
           databaseValue: databaseValue.substring(0, 50), // Truncate for logging
         });
-        
+
         // Return null to prevent application crash
         return null;
       }
@@ -102,7 +102,7 @@ export class SimpleRecipientTransformer implements ValueTransformer {
         error: error instanceof Error ? error.message : error,
         databaseValue: databaseValue.substring(0, 50),
       });
-      
+
       return null;
     }
   }

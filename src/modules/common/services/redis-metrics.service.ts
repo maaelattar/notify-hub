@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { format, startOfHour } from 'date-fns';
 import { RedisProvider } from '../providers/redis.provider';
 import { NotificationPriority } from '../../notifications/enums/notification-priority.enum';
+import { APP_CONSTANTS } from '../../../common/constants/app.constants';
 
 export interface NotificationMetrics {
   notificationsSent: number;
@@ -21,9 +22,11 @@ export class RedisMetricsService {
   private readonly PROCESSING_TIMES_PREFIX = 'processing_times';
 
   // TTL configurations (in seconds)
-  private readonly METRICS_TTL = 7 * 24 * 3600; // 7 days
-  private readonly PROCESSING_TIMES_TTL = 24 * 3600; // 24 hours
-  private readonly MAX_PROCESSING_TIMES = 1000; // Max processing times per hour
+  private readonly METRICS_TTL = APP_CONSTANTS.REDIS.METRICS_TTL_SECONDS; // 7 days
+  private readonly PROCESSING_TIMES_TTL =
+    APP_CONSTANTS.REDIS.PROCESSING_TIMES_TTL_SECONDS; // 24 hours
+  private readonly MAX_PROCESSING_TIMES =
+    APP_CONSTANTS.REDIS.MAX_PROCESSING_TIMES_PER_HOUR; // Max processing times per hour
 
   constructor(private readonly redisProvider: RedisProvider) {}
 

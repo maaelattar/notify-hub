@@ -2,10 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UnauthorizedException } from '@nestjs/common';
-import { 
-  SecureApiKeyService, 
-  ApiKeyValidationResult, 
-  CreateApiKeyRequest 
+import {
+  SecureApiKeyService,
+  ApiKeyValidationResult,
+  CreateApiKeyRequest,
 } from './secure-api-key.service';
 import { ApiKey, ApiKeyRateLimit } from '../entities/api-key.entity';
 import { CryptoService } from './crypto.service';
@@ -41,7 +41,10 @@ describe('SecureApiKeyService - Security Tests', () => {
       pipeline: jest.fn(() => ({
         incr: jest.fn(),
         expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([[null, 1], [null, 'OK']]),
+        exec: jest.fn().mockResolvedValue([
+          [null, 1],
+          [null, 'OK'],
+        ]),
       })),
     };
 
@@ -130,7 +133,7 @@ describe('SecureApiKeyService - Security Tests', () => {
 
       cryptoService.generateApiKey.mockReturnValue(VALID_API_KEY);
       cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
-      
+
       let savedEntity: ApiKey;
       apiKeyRepository.save.mockImplementation((entity: ApiKey) => {
         savedEntity = entity;
@@ -143,7 +146,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       // Assert
       expect(savedEntity!.hashedKey).toBe(VALID_HASH);
       expect(savedEntity!.hashedKey).not.toBe(VALID_API_KEY);
-      
+
       // Ensure no properties contain the plain text key
       const entityValues = Object.values(savedEntity!);
       expect(entityValues).not.toContain(VALID_API_KEY);
@@ -228,7 +231,7 @@ describe('SecureApiKeyService - Security Tests', () => {
     it('should reject inactive API keys', async () => {
       // Arrange
       const inactiveKey = { ...validApiKey, isActive: false };
-      
+
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
       cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
       apiKeyRepository.findOne.mockResolvedValue(null); // findOne with isActive: true returns null
@@ -251,7 +254,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       // Arrange
       const expiredKey = { ...validApiKey } as ApiKey;
       expiredKey.isExpired = jest.fn().mockReturnValue(true);
-      
+
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
       cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
       apiKeyRepository.findOne.mockResolvedValue(expiredKey);
@@ -281,7 +284,7 @@ describe('SecureApiKeyService - Security Tests', () => {
     it('should reject API keys without required scope', async () => {
       // Arrange
       validApiKey.hasScope = jest.fn().mockReturnValue(false);
-      
+
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
       cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
       apiKeyRepository.findOne.mockResolvedValue(validApiKey);
@@ -377,7 +380,10 @@ describe('SecureApiKeyService - Security Tests', () => {
       const pipeline = {
         incr: jest.fn(),
         expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([[null, 1001], [null, 'OK']]), // Exceeds limit of 1000
+        exec: jest.fn().mockResolvedValue([
+          [null, 1001],
+          [null, 'OK'],
+        ]), // Exceeds limit of 1000
       };
       redisMock.pipeline.mockReturnValue(pipeline);
 
@@ -418,7 +424,10 @@ describe('SecureApiKeyService - Security Tests', () => {
       const pipeline = {
         incr: jest.fn(),
         expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([[null, 50], [null, 'OK']]), // Within limit
+        exec: jest.fn().mockResolvedValue([
+          [null, 50],
+          [null, 'OK'],
+        ]), // Within limit
       };
       redisMock.pipeline.mockReturnValue(pipeline);
       apiKeyRepository.findOne.mockResolvedValue(validApiKey);
@@ -487,7 +496,10 @@ describe('SecureApiKeyService - Security Tests', () => {
       const pipeline = {
         incr: jest.fn(),
         expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([[null, 1001], [null, 'OK']]),
+        exec: jest.fn().mockResolvedValue([
+          [null, 1001],
+          [null, 'OK'],
+        ]),
       };
       redisMock.pipeline.mockReturnValue(pipeline);
 
@@ -532,18 +544,26 @@ describe('SecureApiKeyService - Security Tests', () => {
 
       for (const key of invalidKeys) {
         apiKeyRepository.findOne.mockResolvedValue(null);
-        
+
         const start = process.hrtime.bigint();
-        await service.validateApiKey(key, TEST_IP, TEST_USER_AGENT, TEST_REQUEST_ID, TEST_ENDPOINT);
+        await service.validateApiKey(
+          key,
+          TEST_IP,
+          TEST_USER_AGENT,
+          TEST_REQUEST_ID,
+          TEST_ENDPOINT,
+        );
         const end = process.hrtime.bigint();
-        
+
         timings.push(Number(end - start) / 1000000); // Convert to milliseconds
       }
 
       // Assert timing consistency (all should be within reasonable variance)
       const avgTime = timings.reduce((a, b) => a + b, 0) / timings.length;
-      const maxDeviation = Math.max(...timings.map(t => Math.abs(t - avgTime)));
-      
+      const maxDeviation = Math.max(
+        ...timings.map((t) => Math.abs(t - avgTime)),
+      );
+
       // Allow for some variance but not too much (implementation-dependent)
       expect(maxDeviation).toBeLessThan(avgTime * 2); // Max 200% deviation
     });
@@ -555,7 +575,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       apiKeyRepository.findOne.mockResolvedValue(null);
 
       const bruteForceAttempts = 5;
-      
+
       // Act - Simulate multiple failed attempts
       for (let i = 0; i < bruteForceAttempts; i++) {
         await service.validateApiKey(
@@ -568,11 +588,13 @@ describe('SecureApiKeyService - Security Tests', () => {
       }
 
       // Assert - Each attempt should be logged
-      expect(auditService.logInvalidApiKeyAttempt).toHaveBeenCalledTimes(bruteForceAttempts);
-      
+      expect(auditService.logInvalidApiKeyAttempt).toHaveBeenCalledTimes(
+        bruteForceAttempts,
+      );
+
       // Verify all attempts are from same IP (could trigger additional security measures)
       const loggedAttempts = auditService.logInvalidApiKeyAttempt.mock.calls;
-      loggedAttempts.forEach(call => {
+      loggedAttempts.forEach((call) => {
         expect(call[1]).toBe(TEST_IP); // IP address is second parameter
       });
     });
@@ -603,7 +625,9 @@ describe('SecureApiKeyService - Security Tests', () => {
       }
 
       // Verify all malicious attempts are logged
-      expect(auditService.logInvalidApiKeyAttempt).toHaveBeenCalledTimes(maliciousKeys.length);
+      expect(auditService.logInvalidApiKeyAttempt).toHaveBeenCalledTimes(
+        maliciousKeys.length,
+      );
     });
 
     it('should handle extremely long API keys gracefully', async () => {
@@ -623,7 +647,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       // Assert
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Invalid API key format');
-      
+
       // Should not cause performance issues or crashes
       expect(auditService.logInvalidApiKeyAttempt).toHaveBeenCalled();
     });
@@ -672,10 +696,9 @@ describe('SecureApiKeyService - Security Tests', () => {
       await service.deactivateApiKey(apiKey.id, 'user-123');
 
       // Assert
-      expect(apiKeyRepository.update).toHaveBeenCalledWith(
-        apiKey.id,
-        { isActive: false }
-      );
+      expect(apiKeyRepository.update).toHaveBeenCalledWith(apiKey.id, {
+        isActive: false,
+      });
       expect(auditService.logApiKeyDeleted).toHaveBeenCalledWith(
         apiKey.id,
         apiKey.name,
@@ -687,8 +710,16 @@ describe('SecureApiKeyService - Security Tests', () => {
     it('should clean up expired keys securely', async () => {
       // Arrange
       const expiredKeys = [
-        { id: 'key1', name: 'Expired Key 1', expiresAt: new Date('2023-01-01') },
-        { id: 'key2', name: 'Expired Key 2', expiresAt: new Date('2023-01-02') },
+        {
+          id: 'key1',
+          name: 'Expired Key 1',
+          expiresAt: new Date('2023-01-01'),
+        },
+        {
+          id: 'key2',
+          name: 'Expired Key 2',
+          expiresAt: new Date('2023-01-02'),
+        },
       ] as ApiKey[];
 
       apiKeyRepository.find.mockResolvedValue(expiredKeys);
@@ -701,7 +732,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       expect(cleanedCount).toBe(2);
       expect(apiKeyRepository.update).toHaveBeenCalledWith(
         { expiresAt: expect.any(Object), isActive: true },
-        { isActive: false }
+        { isActive: false },
       );
     });
 
@@ -732,7 +763,9 @@ describe('SecureApiKeyService - Security Tests', () => {
       // Arrange
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
       cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
-      apiKeyRepository.findOne.mockRejectedValue(new Error('Database connection failed'));
+      apiKeyRepository.findOne.mockRejectedValue(
+        new Error('Database connection failed'),
+      );
 
       // Act
       const result = await service.validateApiKey(
@@ -769,25 +802,30 @@ describe('SecureApiKeyService - Security Tests', () => {
       const pipeline = {
         incr: jest.fn(),
         expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([[null, 50], [null, 'OK']]),
+        exec: jest.fn().mockResolvedValue([
+          [null, 50],
+          [null, 'OK'],
+        ]),
       };
       redisMock.pipeline.mockReturnValue(pipeline);
 
       // Act - Make multiple concurrent requests
-      const promises = Array(5).fill(null).map((_, i) => 
-        service.validateApiKey(
-          VALID_API_KEY,
-          TEST_IP,
-          TEST_USER_AGENT,
-          `${TEST_REQUEST_ID}-${i}`,
-          TEST_ENDPOINT,
-        )
-      );
+      const promises = Array(5)
+        .fill(null)
+        .map((_, i) =>
+          service.validateApiKey(
+            VALID_API_KEY,
+            TEST_IP,
+            TEST_USER_AGENT,
+            `${TEST_REQUEST_ID}-${i}`,
+            TEST_ENDPOINT,
+          ),
+        );
 
       const results = await Promise.all(promises);
 
       // Assert - All should succeed (within rate limit)
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.valid).toBe(true);
       });
     });
@@ -800,7 +838,10 @@ describe('SecureApiKeyService - Security Tests', () => {
       const pipeline = {
         incr: jest.fn(),
         expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([[null, 'not-a-number'], [null, 'OK']]),
+        exec: jest.fn().mockResolvedValue([
+          [null, 'not-a-number'],
+          [null, 'OK'],
+        ]),
       };
       redisMock.pipeline.mockReturnValue(pipeline);
 
@@ -855,12 +896,12 @@ describe('SecureApiKeyService - Security Tests', () => {
     it('should prevent unauthorized access to usage statistics', async () => {
       // This test would be expanded in integration tests with proper authorization
       // For now, we ensure the method exists and handles basic cases
-      
+
       const apiKeyId = randomUUID();
       redisMock.get.mockResolvedValue('0');
 
       const stats = await service.getUsageStats(apiKeyId);
-      
+
       expect(stats).toHaveProperty('totalRequests');
       expect(stats).toHaveProperty('dailyBreakdown');
     });

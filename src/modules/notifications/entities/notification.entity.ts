@@ -10,8 +10,15 @@ import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationChannel } from '../enums/notification-channel.enum';
 import { Recipient } from '../value-objects/recipient.value-object';
 import { NotificationContent } from '../value-objects/notification-content.value-object';
-import { RecipientTransformer, SimpleRecipientTransformer } from '../transformers/recipient.transformer';
-import { NotificationContentTransformer, SimpleContentTransformer } from '../transformers/notification-content.transformer';
+import {
+  RecipientTransformer,
+  SimpleRecipientTransformer,
+} from '../transformers/recipient.transformer';
+import {
+  NotificationContentTransformer,
+  SimpleContentTransformer,
+} from '../transformers/notification-content.transformer';
+import { APP_CONSTANTS } from '../../../common/constants/app.constants';
 
 @Entity('notifications')
 @Index(['status', 'createdAt']) // For filtering by status
@@ -38,17 +45,17 @@ export class Notification {
   content: string; // The main notification content
 
   // New value object columns (preferred approach)
-  @Column({ 
-    type: 'jsonb', 
-    nullable: true, 
-    transformer: new RecipientTransformer() 
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+    transformer: new RecipientTransformer(),
   })
   recipientVO: Recipient | null; // Rich recipient value object
 
-  @Column({ 
-    type: 'jsonb', 
-    nullable: true, 
-    transformer: new NotificationContentTransformer() 
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+    transformer: new NotificationContentTransformer(),
   })
   contentVO: NotificationContent | null; // Rich content value object
 
@@ -84,7 +91,9 @@ export class Notification {
   updatedAt: Date;
 
   // Helper methods for business logic
-  canRetry(maxRetries: number = 3): boolean {
+  canRetry(
+    maxRetries: number = APP_CONSTANTS.NOTIFICATIONS.MAX_RETRY_ATTEMPTS,
+  ): boolean {
     return (
       this.status === NotificationStatus.FAILED && this.retryCount < maxRetries
     );

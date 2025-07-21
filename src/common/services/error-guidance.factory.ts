@@ -58,7 +58,8 @@ export interface ErrorGuidanceStrategy {
 export class ValidationErrorStrategy implements ErrorGuidanceStrategy {
   createGuidance(baseUrl: string): ErrorGuidance {
     return ErrorGuidance.create({
-      message: 'Please check the request format and ensure all required fields are provided correctly.',
+      message:
+        'Please check the request format and ensure all required fields are provided correctly.',
       documentation: `${baseUrl}/api#/notifications`,
       examples: `${baseUrl}/api#/notifications/NotificationController_create`,
     });
@@ -71,7 +72,8 @@ export class ValidationErrorStrategy implements ErrorGuidanceStrategy {
 export class ResourceNotFoundStrategy implements ErrorGuidanceStrategy {
   createGuidance(baseUrl: string): ErrorGuidance {
     return ErrorGuidance.create({
-      message: 'The requested notification was not found. Please verify the notification ID.',
+      message:
+        'The requested notification was not found. Please verify the notification ID.',
       actions: [
         'Check if the notification ID is correct',
         'Use GET /api/v1/notifications to list available notifications',
@@ -120,7 +122,8 @@ export class DuplicateResourceStrategy implements ErrorGuidanceStrategy {
 export class InvalidStateStrategy implements ErrorGuidanceStrategy {
   createGuidance(baseUrl: string): ErrorGuidance {
     return ErrorGuidance.create({
-      message: "The notification is in a state that doesn't allow this operation.",
+      message:
+        "The notification is in a state that doesn't allow this operation.",
       actions: [
         'Check the notification status with GET /api/v1/notifications/{id}',
         'Only pending notifications can be cancelled or updated',
@@ -169,7 +172,10 @@ export class ErrorGuidanceFactory {
     // Try specific error code first
     const strategy = this.strategies.get(code);
     if (strategy) {
-      const baseUrl = this.configService.get('API_BASE_URL', 'http://localhost:3000');
+      const baseUrl = this.configService.get(
+        'API_BASE_URL',
+        'http://localhost:3000',
+      );
       return strategy.createGuidance(baseUrl);
     }
 
@@ -193,10 +199,13 @@ export class ErrorGuidanceFactory {
 
   private createStatusBasedGuidance(status: number): ErrorGuidance | null {
     if (status === 500) {
-      const baseUrl = this.configService.get('API_BASE_URL', 'http://localhost:3000');
+      const baseUrl = this.configService.get(
+        'API_BASE_URL',
+        'http://localhost:3000',
+      );
       return new ServerErrorStrategy().createGuidance(baseUrl);
     }
-    
+
     // No guidance for other status codes
     return null;
   }

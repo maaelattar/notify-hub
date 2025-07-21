@@ -32,7 +32,9 @@ describe('ChannelRouter', () => {
       recordNotificationFailed: jest.fn().mockResolvedValue(undefined),
       getMetrics: jest.fn().mockResolvedValue({}),
       resetMetrics: jest.fn().mockResolvedValue(undefined),
-      healthCheck: jest.fn().mockResolvedValue({ redis: true, metricsOperational: true }),
+      healthCheck: jest
+        .fn()
+        .mockResolvedValue({ redis: true, metricsOperational: true }),
     } as any;
 
     mockEmailService = {

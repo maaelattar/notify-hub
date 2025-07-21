@@ -47,7 +47,9 @@ export class SecureApiKeyService {
   /**
    * Create a new API key
    */
-  async createApiKey(request: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
+  async createApiKey(
+    request: CreateApiKeyRequest,
+  ): Promise<CreateApiKeyResponse> {
     // Generate secure API key
     const plainTextKey = this.cryptoService.generateApiKey();
     const hashedKey = await this.cryptoService.hashApiKey(plainTextKey);
@@ -104,7 +106,7 @@ export class SecureApiKeyService {
           requestId,
           endpoint,
         );
-        
+
         return {
           valid: false,
           reason: 'Invalid API key format',
@@ -209,7 +211,7 @@ export class SecureApiKeyService {
       };
     } catch (error) {
       this.logger.error('API key validation error:', error);
-      
+
       return {
         valid: false,
         reason: 'Internal validation error',
@@ -238,24 +240,24 @@ export class SecureApiKeyService {
     const now = Date.now();
     const windowMs = 60 * 60 * 1000; // 1 hour
     const windowStart = Math.floor(now / windowMs) * windowMs;
-    
+
     // Use a composite key for rate limiting
     const rateLimitKey = `rate_limit:${hashedKey}:${windowStart}`;
-    
+
     try {
       // Get current count and increment atomically
       const pipeline = redis.pipeline();
       pipeline.incr(rateLimitKey);
       pipeline.expire(rateLimitKey, 3600); // 1 hour TTL
-      
+
       const results = await pipeline.exec();
-      const current = results?.[0]?.[1] as number || 0;
-      
+      const current = (results?.[0]?.[1] as number) || 0;
+
       // For now, use a default limit (this would be per API key in practice)
       const limit = 1000; // 1000 requests per hour default
-      
+
       const resetTime = new Date(windowStart + windowMs);
-      
+
       const info = {
         limit,
         current,
@@ -282,7 +284,7 @@ export class SecureApiKeyService {
       return { allowed: true, info };
     } catch (error) {
       this.logger.error('Rate limit check failed:', error);
-      
+
       // Fail open for rate limiting (allow request) but log the error
       return {
         allowed: true,
@@ -304,12 +306,12 @@ export class SecureApiKeyService {
   ): Promise<void> {
     const redis = this.redisProvider.getClient();
     const now = Date.now();
-    
+
     // Hourly counter
     const hourlyKey = `api_key_usage:${apiKeyId}:${Math.floor(now / (60 * 60 * 1000))}`;
     await redis.incr(hourlyKey);
     await redis.expire(hourlyKey, 3600);
-    
+
     // Daily counter
     const dailyKey = `api_key_usage:${apiKeyId}:${Math.floor(now / (24 * 60 * 60 * 1000))}`;
     await redis.incr(dailyKey);
@@ -412,15 +414,19 @@ export class SecureApiKeyService {
     let totalRequests = 0;
 
     for (let i = 0; i < days; i++) {
-      const dayTimestamp = Math.floor((now - i * 24 * 60 * 60 * 1000) / (24 * 60 * 60 * 1000));
+      const dayTimestamp = Math.floor(
+        (now - i * 24 * 60 * 60 * 1000) / (24 * 60 * 60 * 1000),
+      );
       const dailyKey = `api_key_usage:${apiKeyId}:${dayTimestamp}`;
-      
+
       const requests = await redis.get(dailyKey);
       const requestCount = parseInt(requests || '0', 10);
-      
+
       totalRequests += requestCount;
       dailyBreakdown.push({
-        date: new Date(dayTimestamp * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        date: new Date(dayTimestamp * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split('T')[0],
         requests: requestCount,
       });
     }

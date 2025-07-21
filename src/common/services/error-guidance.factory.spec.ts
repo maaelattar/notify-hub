@@ -38,62 +38,64 @@ describe('ErrorGuidanceFactory', () => {
   describe('createGuidance', () => {
     it('should create validation error guidance', () => {
       const guidance = factory.createGuidance('VALIDATION_ERROR', 400);
-      
+
       expect(guidance).toBeDefined();
       expect(guidance?.getMessage()).toBe(
-        'Please check the request format and ensure all required fields are provided correctly.'
+        'Please check the request format and ensure all required fields are provided correctly.',
       );
-      
+
       const guidanceData = guidance?.toJSON();
-      expect(guidanceData?.documentation).toBe('http://localhost:3000/api#/notifications');
+      expect(guidanceData?.documentation).toBe(
+        'http://localhost:3000/api#/notifications',
+      );
     });
 
     it('should create resource not found guidance', () => {
       const guidance = factory.createGuidance('RESOURCE_NOT_FOUND', 404);
-      
+
       expect(guidance).toBeDefined();
       expect(guidance?.getMessage()).toBe(
-        'The requested notification was not found. Please verify the notification ID.'
+        'The requested notification was not found. Please verify the notification ID.',
       );
       expect(guidance?.getActions()).toHaveLength(3);
     });
 
     it('should create rate limit guidance', () => {
       const guidance = factory.createGuidance('TOO_MANY_REQUESTS', 429);
-      
+
       expect(guidance).toBeDefined();
       expect(guidance?.getMessage()).toBe(
-        'Rate limit exceeded. Please slow down your requests.'
+        'Rate limit exceeded. Please slow down your requests.',
       );
-      
+
       const guidanceData = guidance?.toJSON();
       expect(guidanceData?.retryAfter).toBe('60 seconds');
     });
 
     it('should create server error guidance for status 500', () => {
       const guidance = factory.createGuidance('UNKNOWN_ERROR', 500);
-      
+
       expect(guidance).toBeDefined();
       expect(guidance?.getMessage()).toBe(
-        'An unexpected error occurred. Our team has been notified.'
+        'An unexpected error occurred. Our team has been notified.',
       );
-      
+
       const guidanceData = guidance?.toJSON();
       expect(guidanceData?.support).toBe('support@notifyhub.com');
     });
 
     it('should return null for unsupported error codes', () => {
       const guidance = factory.createGuidance('UNKNOWN_CODE', 400);
-      
+
       expect(guidance).toBeNull();
     });
 
     it('should handle NOT_FOUND alias', () => {
       const guidance = factory.createGuidance('NOT_FOUND', 404);
-      
+
       expect(guidance).toBeDefined();
       expect(guidance?.getMessage()).toBe(
-        'The requested notification was not found. Please verify the notification ID.'
+        'The requested notification was not found. Please verify the notification ID.',
       );
     });
   });
@@ -102,10 +104,10 @@ describe('ErrorGuidanceFactory', () => {
     it('should allow registering custom strategies', () => {
       const customStrategy = new ValidationErrorStrategy();
       factory.registerStrategy('CUSTOM_ERROR', customStrategy);
-      
+
       const supportedCodes = factory.getSupportedCodes();
       expect(supportedCodes).toContain('CUSTOM_ERROR');
-      
+
       const guidance = factory.createGuidance('CUSTOM_ERROR', 400);
       expect(guidance).toBeDefined();
     });
@@ -114,7 +116,7 @@ describe('ErrorGuidanceFactory', () => {
   describe('getSupportedCodes', () => {
     it('should return all registered error codes', () => {
       const codes = factory.getSupportedCodes();
-      
+
       expect(codes).toContain('VALIDATION_ERROR');
       expect(codes).toContain('RESOURCE_NOT_FOUND');
       expect(codes).toContain('NOT_FOUND');
@@ -148,7 +150,7 @@ describe('ErrorGuidance Value Object', () => {
     expect(guidance.getMessage()).toBe('Test error message');
     expect(guidance.getDocumentation()).toBe('https://docs.example.com');
     expect(guidance.getActions()).toEqual(['Action 1', 'Action 2']);
-    
+
     const data = guidance.toJSON();
     expect(data.retryAfter).toBe('30 seconds');
     expect(data.support).toBe('support@example.com');
@@ -174,9 +176,11 @@ describe('Individual Strategy Classes', () => {
     it('should create proper guidance', () => {
       const strategy = new ValidationErrorStrategy();
       const guidance = strategy.createGuidance(baseUrl);
-      
+
       expect(guidance.getMessage()).toContain('request format');
-      expect(guidance.getDocumentation()).toBe('http://localhost:3000/api#/notifications');
+      expect(guidance.getDocumentation()).toBe(
+        'http://localhost:3000/api#/notifications',
+      );
     });
   });
 
@@ -184,7 +188,7 @@ describe('Individual Strategy Classes', () => {
     it('should create proper guidance', () => {
       const strategy = new ResourceNotFoundStrategy();
       const guidance = strategy.createGuidance(baseUrl);
-      
+
       expect(guidance.getMessage()).toContain('not found');
       expect(guidance.getActions()).toHaveLength(3);
     });
@@ -194,7 +198,7 @@ describe('Individual Strategy Classes', () => {
     it('should create proper guidance', () => {
       const strategy = new RateLimitStrategy();
       const guidance = strategy.createGuidance(baseUrl);
-      
+
       expect(guidance.getMessage()).toContain('Rate limit');
       expect(guidance.toJSON().retryAfter).toBe('60 seconds');
     });

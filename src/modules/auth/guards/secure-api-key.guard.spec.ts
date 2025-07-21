@@ -2,8 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { SecureApiKeyGuard, AuthenticatedRequest } from './secure-api-key.guard';
-import { SecureApiKeyService, ApiKeyValidationResult } from '../services/secure-api-key.service';
+import {
+  SecureApiKeyGuard,
+  AuthenticatedRequest,
+} from './secure-api-key.guard';
+import {
+  SecureApiKeyService,
+  ApiKeyValidationResult,
+} from '../services/secure-api-key.service';
 import { ApiKey } from '../entities/api-key.entity';
 import { randomUUID } from 'crypto';
 
@@ -83,8 +89,12 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       // No API key in headers or query
 
       // Act & Assert
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(mockContext)).rejects.toThrow('API key required');
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        'API key required',
+      );
     });
 
     it('should prevent configuration bypass attacks', async () => {
@@ -103,7 +113,12 @@ describe('SecureApiKeyGuard - Security Tests', () => {
           scopes: ['notifications:create'],
           organizationId: 'org-123',
         } as ApiKey,
-        rateLimitInfo: { limit: 1000, current: 1, windowMs: 3600000, resetTime: new Date() },
+        rateLimitInfo: {
+          limit: 1000,
+          current: 1,
+          windowMs: 3600000,
+          resetTime: new Date(),
+        },
       };
 
       apiKeyService.validateApiKey.mockResolvedValue(validationResult);
@@ -133,8 +148,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -176,8 +191,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -219,8 +234,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -264,8 +279,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -304,8 +319,12 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       mockRequest.headers.authorization = 'Malformed header without Bearer';
 
       // Act & Assert
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(mockContext)).rejects.toThrow('API key required');
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        'API key required',
+      );
     });
 
     it('should handle empty Bearer token', async () => {
@@ -314,7 +333,9 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       mockRequest.headers.authorization = 'Bearer '; // Empty token
 
       // Act & Assert
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -324,12 +345,13 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       reflector.getAllAndOverride.mockReturnValue(true);
       mockRequest.headers['x-api-key'] = VALID_API_KEY;
       mockRequest.headers['user-agent'] = TEST_USER_AGENT;
-      mockRequest.headers['x-forwarded-for'] = '203.0.113.1, 192.168.1.100, 10.0.0.1';
+      mockRequest.headers['x-forwarded-for'] =
+        '203.0.113.1, 192.168.1.100, 10.0.0.1';
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -371,8 +393,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -413,8 +435,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -452,7 +474,7 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       reflector.getAllAndOverride.mockReturnValue(true);
       mockRequest.headers['x-api-key'] = VALID_API_KEY;
       mockRequest.headers['user-agent'] = TEST_USER_AGENT;
-      
+
       // Multiple forwarding headers (potential spoofing)
       mockRequest.headers['x-forwarded-for'] = '127.0.0.1';
       mockRequest.headers['x-real-ip'] = '192.168.1.1';
@@ -460,8 +482,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -504,8 +526,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -535,7 +557,7 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       // Assert - All request IDs should be unique
       const uniqueIds = new Set(requestIds);
       expect(uniqueIds.size).toBe(3);
-      requestIds.forEach(id => {
+      requestIds.forEach((id) => {
         expect(id).toMatch(/^req_\d+_[a-z0-9]+$/);
       });
     });
@@ -550,8 +572,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -604,8 +626,12 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       apiKeyService.validateApiKey.mockResolvedValue(validationResult);
 
       // Act & Assert
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(mockContext)).rejects.toThrow('Insufficient permissions');
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        'Insufficient permissions',
+      );
 
       // Verify scope was passed to validation
       expect(apiKeyService.validateApiKey).toHaveBeenCalledWith(
@@ -635,7 +661,12 @@ describe('SecureApiKeyGuard - Security Tests', () => {
           scopes: ['notifications:create', 'notifications:read'],
           organizationId: 'org-123',
         } as ApiKey,
-        rateLimitInfo: { limit: 1000, current: 1, windowMs: 3600000, resetTime: new Date() },
+        rateLimitInfo: {
+          limit: 1000,
+          current: 1,
+          windowMs: 3600000,
+          resetTime: new Date(),
+        },
       };
       apiKeyService.validateApiKey.mockResolvedValue(validationResult);
 
@@ -665,7 +696,9 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       apiKeyService.validateApiKey.mockResolvedValue(validationResult);
 
       // Act & Assert
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
 
       // Verify malicious header doesn't affect validation
       expect(apiKeyService.validateApiKey).toHaveBeenCalledWith(
@@ -686,11 +719,17 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       mockRequest.headers['x-api-key'] = VALID_API_KEY;
       mockRequest.headers['user-agent'] = TEST_USER_AGENT;
 
-      apiKeyService.validateApiKey.mockRejectedValue(new Error('Service error'));
+      apiKeyService.validateApiKey.mockRejectedValue(
+        new Error('Service error'),
+      );
 
       // Act & Assert
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(mockContext)).rejects.toThrow('Authentication failed');
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        'Authentication failed',
+      );
     });
 
     it('should handle rate limit exceeded responses', async () => {
@@ -712,8 +751,10 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       apiKeyService.validateApiKey.mockResolvedValue(rateLimitResult);
 
       // Act & Assert
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
-      
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
       try {
         await guard.canActivate(mockContext);
       } catch (error) {
@@ -738,8 +779,10 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       apiKeyService.validateApiKey.mockResolvedValue(expiredResult);
 
       // Act & Assert
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
-      
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
       try {
         await guard.canActivate(mockContext);
       } catch (error) {
@@ -762,8 +805,10 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       apiKeyService.validateApiKey.mockResolvedValue(invalidFormatResult);
 
       // Act & Assert
-      await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
-      
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
       try {
         await guard.canActivate(mockContext);
       } catch (error) {
@@ -790,16 +835,17 @@ describe('SecureApiKeyGuard - Security Tests', () => {
     it('should prevent header injection attacks', async () => {
       // Arrange
       reflector.getAllAndOverride.mockReturnValue(true);
-      
+
       // Malicious headers with injection attempts
       mockRequest.headers['x-api-key'] = VALID_API_KEY;
-      mockRequest.headers['user-agent'] = 'Normal-Agent\r\nX-Injected: malicious';
+      mockRequest.headers['user-agent'] =
+        'Normal-Agent\r\nX-Injected: malicious';
       mockRequest.headers['x-forwarded-for'] = '127.0.0.1\r\nHost: evil.com';
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -864,7 +910,10 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       expect(result).toBe(true);
       expect(mockRequest.apiKey).toBeDefined();
       expect(mockRequest.apiKey!.id).toBe(apiKeyId);
-      expect(mockRequest.apiKey!.scopes).toEqual(['notifications:create', 'notifications:read']);
+      expect(mockRequest.apiKey!.scopes).toEqual([
+        'notifications:create',
+        'notifications:read',
+      ]);
       expect(mockRequest.apiKey!.organizationId).toBe('org-123');
       expect(mockRequest.apiKey!.rateLimit).toEqual({
         limit: 1000,
@@ -909,8 +958,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -935,7 +984,7 @@ describe('SecureApiKeyGuard - Security Tests', () => {
       // Assert
       expect(mockRequest.requestId).toBeDefined();
       expect(mockRequest.requestId).toMatch(/^req_\d+_[a-z0-9]+$/);
-      
+
       // Verify request ID is used in validation call
       expect(apiKeyService.validateApiKey).toHaveBeenCalledWith(
         VALID_API_KEY,
@@ -959,8 +1008,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',
@@ -1004,8 +1053,8 @@ describe('SecureApiKeyGuard - Security Tests', () => {
 
       const validationResult: ApiKeyValidationResult = {
         valid: true,
-        apiKey: { 
-          id: randomUUID(), 
+        apiKey: {
+          id: randomUUID(),
           scopes: [],
           hashedKey: 'test-hash',
           name: 'Test Key',

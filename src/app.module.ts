@@ -19,6 +19,7 @@ import {
   DatabaseConfig,
 } from './config';
 import { notificationConfig } from './modules/notifications/config/notification.config';
+import { APP_CONSTANTS } from './common/constants/app.constants';
 
 @Module({
   imports: [
@@ -52,43 +53,48 @@ import { notificationConfig } from './modules/notifications/config/notification.
           password: configService.get('REDIS_PASSWORD'),
           retryStrategy: (times: number) => {
             // Retry connection every 3 seconds, up to 10 times
-            if (times > 10) {
-              throw new Error('Redis connection failed after 10 retries');
+            if (times > APP_CONSTANTS.QUEUE.MAX_CONNECTION_RETRIES) {
+              throw new Error(
+                `Redis connection failed after ${APP_CONSTANTS.QUEUE.MAX_CONNECTION_RETRIES} retries`,
+              );
             }
-            return Math.min(times * 3000, 30000);
+            return Math.min(
+              times * APP_CONSTANTS.QUEUE.EXPONENTIAL_BACKOFF_MULTIPLIER,
+              APP_CONSTANTS.QUEUE.MAX_BACKOFF_DELAY,
+            );
           },
-          maxRetriesPerRequest: 3,
+          maxRetriesPerRequest: APP_CONSTANTS.QUEUE.DEFAULT_MAX_RETRIES,
         },
         defaultJobOptions: {
-          attempts: 3,
+          attempts: APP_CONSTANTS.QUEUE.DEFAULT_MAX_RETRIES,
           backoff: {
             type: 'exponential',
-            delay: 2000, // 2 seconds, then 4, then 8
+            delay: APP_CONSTANTS.QUEUE.BULL_INITIAL_BACKOFF_DELAY, // 2 seconds, then 4, then 8
           },
           removeOnComplete: {
-            age: 3600, // Keep completed jobs for 1 hour
-            count: 100, // Keep last 100 completed jobs
+            age: APP_CONSTANTS.QUEUE.COMPLETED_JOBS_AGE_SECONDS, // Keep completed jobs for 1 hour
+            count: APP_CONSTANTS.QUEUE.COMPLETED_JOBS_TO_KEEP, // Keep last 100 completed jobs
           },
           removeOnFail: false, // Keep failed jobs for debugging
-          timeout: 30000, // 30 seconds timeout
+          timeout: APP_CONSTANTS.QUEUE.DEFAULT_JOB_TIMEOUT, // 30 seconds timeout
         },
       }),
     }),
     ThrottlerModule.forRoot([
       {
         name: 'global',
-        ttl: 60000, // 1 minute
-        limit: 100, // 100 requests per minute
+        ttl: APP_CONSTANTS.THROTTLING.GLOBAL_TTL, // 1 minute
+        limit: APP_CONSTANTS.THROTTLING.GLOBAL_LIMIT, // 100 requests per minute
       },
       {
         name: 'create',
-        ttl: 60000,
-        limit: 10, // 10 creates per minute
+        ttl: APP_CONSTANTS.THROTTLING.CREATE_TTL,
+        limit: APP_CONSTANTS.THROTTLING.CREATE_LIMIT, // 10 creates per minute
       },
       {
         name: 'expensive',
-        ttl: 300000, // 5 minutes
-        limit: 5, // 5 expensive operations per 5 minutes
+        ttl: APP_CONSTANTS.THROTTLING.EXPENSIVE_TTL, // 5 minutes
+        limit: APP_CONSTANTS.THROTTLING.EXPENSIVE_LIMIT, // 5 expensive operations per 5 minutes
       },
     ]),
     AuthModule,

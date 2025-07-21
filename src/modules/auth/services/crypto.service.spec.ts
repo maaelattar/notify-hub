@@ -24,7 +24,7 @@ describe('CryptoService - Security Tests', () => {
       expect(apiKey1).toBeDefined();
       expect(apiKey2).toBeDefined();
       expect(apiKey3).toBeDefined();
-      
+
       // Keys should be different
       expect(apiKey1).not.toBe(apiKey2);
       expect(apiKey2).not.toBe(apiKey3);
@@ -50,19 +50,22 @@ describe('CryptoService - Security Tests', () => {
     it('should have high entropy in generated keys', () => {
       // Generate multiple keys to analyze entropy
       const keys = Array.from({ length: 100 }, () => service.generateApiKey());
-      
+
       // Count unique characters across all keys
       const allChars = keys.join('');
       const uniqueChars = new Set(allChars);
-      
+
       // Should use most of the base64url character set
       expect(uniqueChars.size).toBeGreaterThan(50); // At least 50 different chars
 
       // Keys should be uniformly random (basic statistical test)
       const firstCharCounts = new Map<string, number>();
-      keys.forEach(key => {
+      keys.forEach((key) => {
         const firstChar = key[0];
-        firstCharCounts.set(firstChar, (firstCharCounts.get(firstChar) || 0) + 1);
+        firstCharCounts.set(
+          firstChar,
+          (firstCharCounts.get(firstChar) || 0) + 1,
+        );
       });
 
       // No single character should dominate the first position
@@ -73,10 +76,10 @@ describe('CryptoService - Security Tests', () => {
     it('should generate keys that are statistically random', () => {
       // Generate keys and convert to bytes for analysis
       const keys = Array.from({ length: 50 }, () => service.generateApiKey());
-      
+
       // Convert base64url back to bytes for entropy analysis
       const allBytes: number[] = [];
-      keys.forEach(key => {
+      keys.forEach((key) => {
         // Convert base64url to base64
         const base64 = key.replace(/-/g, '+').replace(/_/g, '/');
         const buffer = Buffer.from(base64, 'base64');
@@ -85,7 +88,7 @@ describe('CryptoService - Security Tests', () => {
 
       // Basic entropy test: count different byte values
       const byteCounts = new Map<number, number>();
-      allBytes.forEach(byte => {
+      allBytes.forEach((byte) => {
         byteCounts.set(byte, (byteCounts.get(byte) || 0) + 1);
       });
 
@@ -96,20 +99,26 @@ describe('CryptoService - Security Tests', () => {
     it('should not be predictable based on timing', () => {
       // Generate keys at different times and ensure they're not related
       const key1 = service.generateApiKey();
-      
+
       // Small delay
       const start = Date.now();
       while (Date.now() - start < 1) {} // 1ms delay
-      
+
       const key2 = service.generateApiKey();
-      
+
       // Keys should be completely different despite similar generation time
       expect(key1).not.toBe(key2);
-      
+
       // Convert to bytes and check for any patterns
-      const bytes1 = Buffer.from(key1.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
-      const bytes2 = Buffer.from(key2.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
-      
+      const bytes1 = Buffer.from(
+        key1.replace(/-/g, '+').replace(/_/g, '/'),
+        'base64',
+      );
+      const bytes2 = Buffer.from(
+        key2.replace(/-/g, '+').replace(/_/g, '/'),
+        'base64',
+      );
+
       // Should not have similar starting bytes
       expect(bytes1[0]).not.toBe(bytes2[0]); // Very low probability if truly random
     });
@@ -169,8 +178,12 @@ describe('CryptoService - Security Tests', () => {
       const modifiedHash = await service.hashApiKey(modifiedKey);
 
       // Convert to binary and count different bits
-      const baseBits = BigInt('0x' + baseHash).toString(2).padStart(256, '0');
-      const modifiedBits = BigInt('0x' + modifiedHash).toString(2).padStart(256, '0');
+      const baseBits = BigInt('0x' + baseHash)
+        .toString(2)
+        .padStart(256, '0');
+      const modifiedBits = BigInt('0x' + modifiedHash)
+        .toString(2)
+        .padStart(256, '0');
 
       let differentBits = 0;
       for (let i = 0; i < 256; i++) {
@@ -201,7 +214,7 @@ describe('CryptoService - Security Tests', () => {
       for (const testCase of testCases) {
         const hash = await service.hashApiKey(testCase);
         hashes.push(hash);
-        
+
         // Each hash should be valid SHA-256 hex
         expect(hash).toMatch(/^[a-f0-9]{64}$/);
       }
@@ -214,7 +227,7 @@ describe('CryptoService - Security Tests', () => {
     it('should be computationally infeasible to reverse', async () => {
       // This is more of a documentation test - we can't actually test cryptographic security
       // But we can verify that the hash doesn't contain obvious patterns from the input
-      
+
       const apiKey = 'very-predictable-pattern-12345';
       const hash = await service.hashApiKey(apiKey);
 
@@ -241,12 +254,16 @@ describe('CryptoService - Security Tests', () => {
 
     it('should prevent timing attacks', () => {
       // Test that comparison time doesn't reveal information about where strings differ
-      const correctHash = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
-      
+      const correctHash =
+        'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+
       // Different hashes with differences at different positions
-      const wrongAtStart = 'zbcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
-      const wrongAtMiddle = 'abcdef1234567890abcdef1234567890zbcdef1234567890abcdef1234567890';
-      const wrongAtEnd = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef123456789z';
+      const wrongAtStart =
+        'zbcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+      const wrongAtMiddle =
+        'abcdef1234567890abcdef1234567890zbcdef1234567890abcdef1234567890';
+      const wrongAtEnd =
+        'abcdef1234567890abcdef1234567890abcdef1234567890abcdef123456789z';
 
       // All comparisons should take similar time (constant time)
       const timings: number[] = [];
@@ -260,8 +277,10 @@ describe('CryptoService - Security Tests', () => {
 
       // Timing differences should be minimal for constant-time operation
       const avgTime = timings.reduce((a, b) => a + b, 0) / timings.length;
-      const maxDeviation = Math.max(...timings.map(t => Math.abs(t - avgTime)));
-      
+      const maxDeviation = Math.max(
+        ...timings.map((t) => Math.abs(t - avgTime)),
+      );
+
       // Allow some variance but not too much (implementation dependent)
       expect(maxDeviation).toBeLessThan(avgTime); // Less than 100% deviation
     });
@@ -292,15 +311,19 @@ describe('CryptoService - Security Tests', () => {
 
       // Act & Assert
       for (const invalidHash of invalidHashes) {
-        expect(() => service.compareHashes(validHash, invalidHash)).not.toThrow();
+        expect(() =>
+          service.compareHashes(validHash, invalidHash),
+        ).not.toThrow();
         expect(service.compareHashes(validHash, invalidHash)).toBe(false);
       }
     });
 
     it('should use constant-time comparison from crypto module', () => {
       // Verify that we're actually using the crypto module's timing-safe comparison
-      const hash1 = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
-      const hash2 = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+      const hash1 =
+        'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+      const hash2 =
+        'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
 
       // Mock crypto.timingSafeEqual to verify it's being called
       const timingSafeEqualSpy = jest.spyOn(crypto, 'timingSafeEqual');
@@ -308,7 +331,7 @@ describe('CryptoService - Security Tests', () => {
       service.compareHashes(hash1, hash2);
 
       expect(timingSafeEqualSpy).toHaveBeenCalled();
-      
+
       timingSafeEqualSpy.mockRestore();
     });
   });
@@ -405,17 +428,17 @@ describe('CryptoService - Security Tests', () => {
   describe('General Hash Function Security', () => {
     it('should produce consistent hashes for strings', () => {
       const input = 'test-string-to-hash';
-      
+
       const hash1 = service.hashString(input);
       const hash2 = service.hashString(input);
-      
+
       expect(hash1).toBe(hash2);
       expect(hash1).toMatch(/^[a-f0-9]{64}$/);
     });
 
     it('should produce different hashes for different strings', () => {
       const inputs = ['string1', 'string2', 'different', ''];
-      const hashes = inputs.map(input => service.hashString(input));
+      const hashes = inputs.map((input) => service.hashString(input));
 
       // All hashes should be unique
       const uniqueHashes = new Set(hashes);
@@ -447,7 +470,7 @@ describe('CryptoService - Security Tests', () => {
 
     it('should handle different lengths correctly', () => {
       const lengths = [1, 8, 16, 32, 64, 128];
-      
+
       for (const length of lengths) {
         const random = service.generateSecureRandom(length);
         expect(random).toHaveLength(length);
@@ -457,12 +480,14 @@ describe('CryptoService - Security Tests', () => {
 
     it('should generate high entropy random strings', () => {
       // Generate multiple random strings and check distribution
-      const randoms = Array.from({ length: 100 }, () => service.generateSecureRandom(16));
-      
+      const randoms = Array.from({ length: 100 }, () =>
+        service.generateSecureRandom(16),
+      );
+
       // Count unique characters
       const allChars = randoms.join('');
       const uniqueChars = new Set(allChars);
-      
+
       // Should use most hex characters (0-9, a-f)
       expect(uniqueChars.size).toBeGreaterThanOrEqual(14); // At least 14 of 16 hex chars
 
@@ -475,7 +500,7 @@ describe('CryptoService - Security Tests', () => {
       // No character should be overly dominant
       const totalChars = allChars.length;
       const expectedFreq = totalChars / 16; // Expected frequency per hex char
-      
+
       for (const count of charCounts.values()) {
         // Should be within reasonable range of expected frequency
         expect(count).toBeGreaterThan(expectedFreq * 0.5);
@@ -507,7 +532,7 @@ describe('CryptoService - Security Tests', () => {
 
     it('should have high entropy', () => {
       const salts = Array.from({ length: 50 }, () => service.generateSalt());
-      
+
       // All salts should be unique
       const uniqueSalts = new Set(salts);
       expect(uniqueSalts.size).toBe(50);
@@ -523,16 +548,16 @@ describe('CryptoService - Security Tests', () => {
     it('should handle hashing of large inputs efficiently', async () => {
       // Test with progressively larger inputs
       const sizes = [1000, 10000, 100000];
-      
+
       for (const size of sizes) {
         const largeInput = 'A'.repeat(size);
-        
+
         const start = process.hrtime.bigint();
         const hash = await service.hashApiKey(largeInput);
         const end = process.hrtime.bigint();
-        
+
         const timeMs = Number(end - start) / 1000000;
-        
+
         // Should complete in reasonable time (adjust threshold as needed)
         expect(timeMs).toBeLessThan(100); // Less than 100ms
         expect(hash).toMatch(/^[a-f0-9]{64}$/);
@@ -542,21 +567,21 @@ describe('CryptoService - Security Tests', () => {
     it('should not be vulnerable to hash flooding attacks', async () => {
       // Generate many different inputs that could potentially cause collisions
       const inputs = Array.from({ length: 1000 }, (_, i) => `test-input-${i}`);
-      
+
       const hashes: string[] = [];
       const startTime = Date.now();
-      
+
       for (const input of inputs) {
         const hash = await service.hashApiKey(input);
         hashes.push(hash);
       }
-      
+
       const endTime = Date.now();
       const totalTime = endTime - startTime;
-      
+
       // Should complete in reasonable time
       expect(totalTime).toBeLessThan(1000); // Less than 1 second
-      
+
       // All hashes should be unique (no intentional collisions)
       const uniqueHashes = new Set(hashes);
       expect(uniqueHashes.size).toBe(hashes.length);
@@ -564,17 +589,17 @@ describe('CryptoService - Security Tests', () => {
 
     it('should handle concurrent operations safely', async () => {
       // Test concurrent hashing operations
-      const promises = Array.from({ length: 100 }, (_, i) => 
-        service.hashApiKey(`concurrent-test-${i}`)
+      const promises = Array.from({ length: 100 }, (_, i) =>
+        service.hashApiKey(`concurrent-test-${i}`),
       );
-      
+
       const hashes = await Promise.all(promises);
-      
+
       // All should be unique and valid
       const uniqueHashes = new Set(hashes);
       expect(uniqueHashes.size).toBe(100);
-      
-      hashes.forEach(hash => {
+
+      hashes.forEach((hash) => {
         expect(hash).toMatch(/^[a-f0-9]{64}$/);
       });
     });

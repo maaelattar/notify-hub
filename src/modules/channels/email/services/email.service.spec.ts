@@ -15,7 +15,9 @@ jest.mock('nodemailer');
 jest.mock('fs/promises');
 jest.mock('email-validator');
 jest.mock('handlebars', () => ({
-  compile: jest.fn().mockReturnValue((context: any) => `<h1>${context.content}</h1>`),
+  compile: jest
+    .fn()
+    .mockReturnValue((context: any) => `<h1>${context.content}</h1>`),
   registerHelper: jest.fn(),
 }));
 
@@ -162,7 +164,7 @@ describe('EmailService', () => {
           },
         ],
       }).compile();
-      
+
       const testService = testModule.get<EmailService>(EmailService);
 
       // Act - Should not throw but should handle verification failure gracefully
@@ -420,7 +422,7 @@ describe('EmailService', () => {
         subject: null,
         content: 'This is a test notification',
       });
-      
+
       // Force the subject to be null/undefined
       notification.subject = null;
 

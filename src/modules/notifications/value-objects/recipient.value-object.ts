@@ -1,7 +1,10 @@
 import { NotificationChannel } from '../enums/notification-channel.enum';
 
 export class InvalidRecipientError extends Error {
-  constructor(message: string, public readonly code: string = 'INVALID_RECIPIENT') {
+  constructor(
+    message: string,
+    public readonly code: string = 'INVALID_RECIPIENT',
+  ) {
     super(message);
     this.name = 'InvalidRecipientError';
   }
@@ -40,16 +43,16 @@ export class Recipient {
    */
   static email(email: string, isVerified: boolean = false): Recipient {
     const trimmed = email.trim().toLowerCase();
-    
+
     if (!this.isValidEmailFormat(trimmed)) {
       throw new InvalidRecipientError(
         `Invalid email format: ${email}`,
-        'INVALID_EMAIL_FORMAT'
+        'INVALID_EMAIL_FORMAT',
       );
     }
 
     const domain = trimmed.split('@')[1];
-    
+
     return new Recipient(trimmed, {
       type: RecipientType.EMAIL,
       domain,
@@ -62,11 +65,11 @@ export class Recipient {
    */
   static phone(phone: string, countryCode?: string): Recipient {
     const cleaned = phone.replace(/[\s\-\(\)]/g, ''); // Remove formatting
-    
+
     if (!this.isValidPhoneFormat(cleaned)) {
       throw new InvalidRecipientError(
         `Invalid phone format: ${phone}`,
-        'INVALID_PHONE_FORMAT'
+        'INVALID_PHONE_FORMAT',
       );
     }
 
@@ -87,11 +90,11 @@ export class Recipient {
    */
   static webhookUrl(url: string): Recipient {
     const trimmed = url.trim();
-    
+
     if (!this.isValidUrlFormat(trimmed)) {
       throw new InvalidRecipientError(
         `Invalid webhook URL format: ${url}`,
-        'INVALID_WEBHOOK_URL'
+        'INVALID_WEBHOOK_URL',
       );
     }
 
@@ -110,11 +113,11 @@ export class Recipient {
    */
   static deviceToken(token: string): Recipient {
     const trimmed = token.trim();
-    
+
     if (!this.isValidDeviceTokenFormat(trimmed)) {
       throw new InvalidRecipientError(
         `Invalid device token format: ${token}`,
-        'INVALID_DEVICE_TOKEN'
+        'INVALID_DEVICE_TOKEN',
       );
     }
 
@@ -147,22 +150,22 @@ export class Recipient {
     if (this.isValidEmailFormat(trimmed)) {
       return this.email(trimmed);
     }
-    
+
     if (this.isValidPhoneFormat(trimmed)) {
       return this.phone(trimmed);
     }
-    
+
     if (this.isValidUrlFormat(trimmed)) {
       return this.webhookUrl(trimmed);
     }
-    
+
     if (this.isValidDeviceTokenFormat(trimmed)) {
       return this.deviceToken(trimmed);
     }
 
     throw new InvalidRecipientError(
       `Could not determine recipient type for: ${value}`,
-      'UNKNOWN_RECIPIENT_TYPE'
+      'UNKNOWN_RECIPIENT_TYPE',
     );
   }
 
@@ -240,25 +243,26 @@ export class Recipient {
     switch (this.metadata.type) {
       case RecipientType.EMAIL:
         const [local, domain] = this.value.split('@');
-        const maskedLocal = local.length > 2 
-          ? `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}`
-          : local;
+        const maskedLocal =
+          local.length > 2
+            ? `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}`
+            : local;
         return `${maskedLocal}@${domain}`;
-        
+
       case RecipientType.PHONE:
         return this.value.length > 4
           ? `${this.value.substring(0, 4)}${'*'.repeat(this.value.length - 8)}${this.value.substring(this.value.length - 4)}`
           : this.value;
-          
+
       case RecipientType.WEBHOOK_URL:
         const url = new URL(this.value);
         return `${url.protocol}//${url.hostname}/***`;
-        
+
       case RecipientType.DEVICE_TOKEN:
         return this.value.length > 8
           ? `${this.value.substring(0, 8)}***${this.value.substring(this.value.length - 8)}`
           : this.value;
-          
+
       default:
         return '***';
     }
@@ -268,8 +272,9 @@ export class Recipient {
    * Equality comparison
    */
   equals(other: Recipient): boolean {
-    return this.value === other.value && 
-           this.metadata.type === other.metadata.type;
+    return (
+      this.value === other.value && this.metadata.type === other.metadata.type
+    );
   }
 
   /**
@@ -292,7 +297,10 @@ export class Recipient {
   /**
    * Create from JSON representation
    */
-  static fromJSON(json: { value: string; metadata: RecipientMetadata }): Recipient {
+  static fromJSON(json: {
+    value: string;
+    metadata: RecipientMetadata;
+  }): Recipient {
     return new Recipient(json.value, json.metadata);
   }
 
@@ -301,14 +309,14 @@ export class Recipient {
     if (!this.value || this.value.trim().length === 0) {
       throw new InvalidRecipientError(
         'Recipient value cannot be empty',
-        'EMPTY_RECIPIENT'
+        'EMPTY_RECIPIENT',
       );
     }
 
     if (this.value.length > 255) {
       throw new InvalidRecipientError(
         'Recipient value exceeds maximum length of 255 characters',
-        'RECIPIENT_TOO_LONG'
+        'RECIPIENT_TOO_LONG',
       );
     }
 
@@ -316,27 +324,28 @@ export class Recipient {
     if (this.containsSuspiciousContent(this.value)) {
       throw new InvalidRecipientError(
         'Recipient contains potentially harmful characters',
-        'SUSPICIOUS_RECIPIENT'
+        'SUSPICIOUS_RECIPIENT',
       );
     }
   }
 
   private containsSuspiciousContent(value: string): boolean {
     const suspiciousPatterns = [
-      /[<>'"]/,  // HTML/XML characters
-      /[{}]/,    // Template injection
-      /[;|&]/,   // Command injection
-      /\x00/,    // Null bytes
+      /[<>'"]/, // HTML/XML characters
+      /[{}]/, // Template injection
+      /[;|&]/, // Command injection
+      /\x00/, // Null bytes
       /javascript:/i, // JavaScript protocol
-      /data:/i,  // Data URLs
+      /data:/i, // Data URLs
     ];
 
-    return suspiciousPatterns.some(pattern => pattern.test(value));
+    return suspiciousPatterns.some((pattern) => pattern.test(value));
   }
 
   // Static validation methods
   private static isValidEmailFormat(email: string): boolean {
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    const emailRegex =
+      /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
     return emailRegex.test(email) && email.length <= 254; // RFC 5321 limit
   }
 
@@ -359,10 +368,12 @@ export class Recipient {
     // Device tokens are typically hex strings or base64
     const hexRegex = /^[a-fA-F0-9]{8,}$/;
     const base64Regex = /^[A-Za-z0-9+/=]{8,}$/;
-    
-    return token.length >= 8 && 
-           token.length <= 4096 && 
-           (hexRegex.test(token) || base64Regex.test(token));
+
+    return (
+      token.length >= 8 &&
+      token.length <= 4096 &&
+      (hexRegex.test(token) || base64Regex.test(token))
+    );
   }
 
   private static extractCountryCode(phone: string): string | undefined {

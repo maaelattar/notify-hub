@@ -16,10 +16,15 @@ export interface ValidationError {
 
 export class ValidationContext {
   private errors: ValidationError[] = [];
-  
+
   constructor(private readonly dto: CreateNotificationDto) {}
 
-  addError(field: string, code: string, message: string, context?: Record<string, any>): void {
+  addError(
+    field: string,
+    code: string,
+    message: string,
+    context?: Record<string, any>,
+  ): void {
     this.errors.push({ field, code, message, context });
   }
 
@@ -53,7 +58,7 @@ export interface INotificationValidator {
 export class EmailNotificationValidator implements INotificationValidator {
   validate(context: ValidationContext): void {
     const dto = context.getDto();
-    
+
     if (dto.channel !== NotificationChannel.EMAIL) {
       return;
     }
@@ -64,7 +69,7 @@ export class EmailNotificationValidator implements INotificationValidator {
         'subject',
         'SUBJECT_REQUIRED',
         'Subject is required for email notifications',
-        { channel: dto.channel }
+        { channel: dto.channel },
       );
     }
 
@@ -74,11 +79,11 @@ export class EmailNotificationValidator implements INotificationValidator {
         'recipient',
         'INVALID_EMAIL_FORMAT',
         'Recipient must be a valid email address',
-        { 
+        {
           channel: dto.channel,
           recipient: dto.recipient,
-          expectedFormat: 'email@domain.com'
-        }
+          expectedFormat: 'email@domain.com',
+        },
       );
     }
 
@@ -88,11 +93,11 @@ export class EmailNotificationValidator implements INotificationValidator {
         'subject',
         'SUBJECT_TOO_LONG',
         'Email subject must be 255 characters or less',
-        { 
+        {
           channel: dto.channel,
           currentLength: dto.subject.length,
-          maxLength: 255
-        }
+          maxLength: 255,
+        },
       );
     }
   }
@@ -104,13 +109,13 @@ export class EmailNotificationValidator implements INotificationValidator {
 }
 
 // SMS notification validator
-@Injectable() 
+@Injectable()
 export class SmsNotificationValidator implements INotificationValidator {
   private readonly SMS_MAX_LENGTH = 160;
 
   validate(context: ValidationContext): void {
     const dto = context.getDto();
-    
+
     if (dto.channel !== NotificationChannel.SMS) {
       return;
     }
@@ -124,8 +129,8 @@ export class SmsNotificationValidator implements INotificationValidator {
         {
           channel: dto.channel,
           recipient: dto.recipient,
-          expectedFormat: '+1234567890 or international format'
-        }
+          expectedFormat: '+1234567890 or international format',
+        },
       );
     }
 
@@ -138,8 +143,8 @@ export class SmsNotificationValidator implements INotificationValidator {
         {
           channel: dto.channel,
           currentLength: dto.content.length,
-          maxLength: this.SMS_MAX_LENGTH
-        }
+          maxLength: this.SMS_MAX_LENGTH,
+        },
       );
     }
 
@@ -149,7 +154,7 @@ export class SmsNotificationValidator implements INotificationValidator {
         'subject',
         'SUBJECT_NOT_ALLOWED',
         'Subject is not supported for SMS notifications',
-        { channel: dto.channel }
+        { channel: dto.channel },
       );
     }
   }
@@ -166,7 +171,7 @@ export class SmsNotificationValidator implements INotificationValidator {
 export class WebhookNotificationValidator implements INotificationValidator {
   validate(context: ValidationContext): void {
     const dto = context.getDto();
-    
+
     if (dto.channel !== NotificationChannel.WEBHOOK) {
       return;
     }
@@ -180,8 +185,8 @@ export class WebhookNotificationValidator implements INotificationValidator {
         {
           channel: dto.channel,
           recipient: dto.recipient,
-          expectedFormat: 'https://example.com/webhook'
-        }
+          expectedFormat: 'https://example.com/webhook',
+        },
       );
     }
 
@@ -193,8 +198,8 @@ export class WebhookNotificationValidator implements INotificationValidator {
         'Webhook URLs should use HTTPS for security',
         {
           channel: dto.channel,
-          recipient: dto.recipient
-        }
+          recipient: dto.recipient,
+        },
       );
     }
   }
@@ -229,15 +234,10 @@ export class ContentValidator implements INotificationValidator {
 
     // Content length validation
     if (dto.content.length < this.MIN_CONTENT_LENGTH) {
-      context.addError(
-        'content',
-        'CONTENT_EMPTY',
-        'Content cannot be empty',
-        {
-          currentLength: dto.content.length,
-          minLength: this.MIN_CONTENT_LENGTH
-        }
-      );
+      context.addError('content', 'CONTENT_EMPTY', 'Content cannot be empty', {
+        currentLength: dto.content.length,
+        minLength: this.MIN_CONTENT_LENGTH,
+      });
     }
 
     if (dto.content.length > this.MAX_CONTENT_LENGTH) {
@@ -247,8 +247,8 @@ export class ContentValidator implements INotificationValidator {
         `Content must be ${this.MAX_CONTENT_LENGTH} characters or less`,
         {
           currentLength: dto.content.length,
-          maxLength: this.MAX_CONTENT_LENGTH
-        }
+          maxLength: this.MAX_CONTENT_LENGTH,
+        },
       );
     }
 
@@ -259,8 +259,8 @@ export class ContentValidator implements INotificationValidator {
         'SUSPICIOUS_CONTENT',
         'Content contains potentially harmful elements',
         {
-          contentPreview: dto.content.substring(0, 100)
-        }
+          contentPreview: dto.content.substring(0, 100),
+        },
       );
     }
   }
@@ -274,7 +274,7 @@ export class ContentValidator implements INotificationValidator {
       /data:text\/html/gi,
     ];
 
-    return suspiciousPatterns.some(pattern => pattern.test(content));
+    return suspiciousPatterns.some((pattern) => pattern.test(content));
   }
 }
 
@@ -290,7 +290,7 @@ export class RecipientFormatValidator implements INotificationValidator {
         'recipient',
         'RECIPIENT_EMPTY',
         'Recipient cannot be empty',
-        { channel: dto.channel }
+        { channel: dto.channel },
       );
       return;
     }
@@ -303,8 +303,8 @@ export class RecipientFormatValidator implements INotificationValidator {
         {
           channel: dto.channel,
           currentLength: dto.recipient.length,
-          maxLength: 255
-        }
+          maxLength: 255,
+        },
       );
     }
 
@@ -316,8 +316,8 @@ export class RecipientFormatValidator implements INotificationValidator {
         'Recipient contains potentially harmful characters',
         {
           channel: dto.channel,
-          recipient: dto.recipient.substring(0, 50)
-        }
+          recipient: dto.recipient.substring(0, 50),
+        },
       );
     }
   }
@@ -325,13 +325,13 @@ export class RecipientFormatValidator implements INotificationValidator {
   private containsSuspiciousRecipient(recipient: string): boolean {
     // Check for patterns that might indicate injection attempts
     const suspiciousPatterns = [
-      /[<>'"]/,  // HTML/XML characters
-      /[{}]/,    // Template injection
-      /[;|&]/,   // Command injection
-      /\x00/,    // Null bytes
+      /[<>'"]/, // HTML/XML characters
+      /[{}]/, // Template injection
+      /[;|&]/, // Command injection
+      /\x00/, // Null bytes
     ];
 
-    return suspiciousPatterns.some(pattern => pattern.test(recipient));
+    return suspiciousPatterns.some((pattern) => pattern.test(recipient));
   }
 }
 
@@ -352,7 +352,7 @@ export class NotificationValidatorService {
     // Run all validators
     for (const validator of this.validators) {
       await validator.validate(context);
-      
+
       // Early exit if critical errors found (optional optimization)
       // if (context.hasErrors()) break;
     }
@@ -370,23 +370,23 @@ export class NotificationValidatorService {
     allErrors: ValidationError[];
   }> {
     const result = await this.validate(dto);
-    
+
     const criticalCodes = [
       'RECIPIENT_EMPTY',
-      'CONTENT_EMPTY', 
+      'CONTENT_EMPTY',
       'INVALID_EMAIL_FORMAT',
       'INVALID_PHONE_FORMAT',
       'INVALID_WEBHOOK_URL',
       'SUSPICIOUS_CONTENT',
-      'SUSPICIOUS_RECIPIENT'
+      'SUSPICIOUS_RECIPIENT',
     ];
 
-    const criticalErrors = result.errors.filter(error => 
-      criticalCodes.includes(error.code)
+    const criticalErrors = result.errors.filter((error) =>
+      criticalCodes.includes(error.code),
     );
-    
-    const warningErrors = result.errors.filter(error => 
-      !criticalCodes.includes(error.code)
+
+    const warningErrors = result.errors.filter(
+      (error) => !criticalCodes.includes(error.code),
     );
 
     return {

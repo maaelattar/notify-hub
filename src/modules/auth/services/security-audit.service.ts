@@ -34,7 +34,7 @@ export class SecurityAuditService {
   async logSecurityEvent(eventData: AuditEventData): Promise<void> {
     try {
       const auditLog = new SecurityAuditLog();
-      
+
       auditLog.eventType = eventData.eventType;
       auditLog.apiKeyId = eventData.apiKeyId || null;
       auditLog.hashedKey = eventData.hashedKey || null;
@@ -66,7 +66,7 @@ export class SecurityAuditService {
           eventData,
         },
       );
-      
+
       // In production, this might trigger an alert to security team
       // For now, we'll ensure it's logged at error level for monitoring
     }
@@ -242,9 +242,7 @@ export class SecurityAuditService {
   /**
    * Get suspicious activity (for security monitoring)
    */
-  async getSuspiciousActivity(
-    timeWindowHours: number = 24,
-  ): Promise<{
+  async getSuspiciousActivity(timeWindowHours: number = 24): Promise<{
     invalidAttempts: number;
     rateLimitExceeded: number;
     expiredKeyAttempts: number;

@@ -15,10 +15,12 @@ import {
   TestAssertions,
   TestEnvironment,
 } from '../../../test/test-utils';
+import { Pagination } from '../../../common/value-objects/pagination.vo';
+import { MockNotificationService } from '../../../test/mock-types';
 
 describe('NotificationController (Integration)', () => {
   let controller: NotificationController;
-  let mockNotificationService: jest.Mocked<NotificationService>;
+  let mockNotificationService: MockNotificationService;
   let module: TestingModule;
 
   beforeEach(async () => {
@@ -26,8 +28,7 @@ describe('NotificationController (Integration)', () => {
     TestEnvironment.setTestEnvironment();
 
     // Create mock service
-    mockNotificationService =
-      MockFactory.createMockNotificationService() as any;
+    mockNotificationService = MockFactory.createMockNotificationService();
 
     module = await Test.createTestingModule({
       imports: [
@@ -137,8 +138,7 @@ describe('NotificationController (Integration)', () => {
         result,
         notificationResponses,
         25,
-        1,
-        20,
+        new Pagination(1, 20),
       );
     });
 
@@ -148,8 +148,7 @@ describe('NotificationController (Integration)', () => {
       filterDto.status = NotificationStatus.SENT;
       filterDto.channel = NotificationChannel.EMAIL;
       filterDto.recipient = 'test@example.com';
-      filterDto.page = 2;
-      filterDto.limit = 10;
+      filterDto.pagination = new Pagination(2, 10);
 
       const filteredNotifications = [
         TestDataBuilder.createNotificationResponse(),

@@ -134,8 +134,11 @@ export class NotificationController {
       'Get a paginated list of notifications with optional filtering',
   })
   @ApiPaginatedResponse(NotificationResponseDto)
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({
+    name: 'pagination',
+    required: false,
+    description: 'Pagination object with page and limit',
+  })
   @ApiQuery({
     name: 'status',
     required: false,
@@ -175,14 +178,7 @@ export class NotificationController {
       `Fetching notifications with filters: ${JSON.stringify(filterDto)}`,
     );
 
-    const result = await this.notificationService.findAll(filterDto);
-
-    return PaginatedResponseDto.create(
-      result.data,
-      result.total,
-      result.page,
-      result.limit,
-    );
+    return await this.notificationService.findAll(filterDto);
   }
 
   /**

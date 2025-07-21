@@ -196,7 +196,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     return errorNames[status] || 'Error';
   }
 
-
   private logError(
     exception: unknown,
     request: RequestWithCorrelationId,

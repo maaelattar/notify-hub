@@ -22,7 +22,7 @@ export class CryptoService {
   generateApiKey(): string {
     // Generate 32 random bytes and encode as base64url
     const keyBytes = randomBytes(this.KEY_LENGTH);
-    
+
     // Use base64url encoding (URL-safe, no padding)
     return keyBytes
       .toString('base64')
@@ -51,7 +51,7 @@ export class CryptoService {
     try {
       const buffer1 = Buffer.from(hash1, 'hex');
       const buffer2 = Buffer.from(hash2, 'hex');
-      
+
       return timingSafeEqual(buffer1, buffer2);
     } catch (error) {
       return false;

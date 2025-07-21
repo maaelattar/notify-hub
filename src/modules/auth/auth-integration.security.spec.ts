@@ -6,13 +6,19 @@ import { Reflector } from '@nestjs/core';
 
 // Services and Guards
 import { SecureApiKeyService } from './services/secure-api-key.service';
-import { SecureApiKeyGuard, AuthenticatedRequest } from './guards/secure-api-key.guard';
+import {
+  SecureApiKeyGuard,
+  AuthenticatedRequest,
+} from './guards/secure-api-key.guard';
 import { CryptoService } from './services/crypto.service';
 import { SecurityAuditService } from './services/security-audit.service';
 
 // Entities
 import { ApiKey } from './entities/api-key.entity';
-import { SecurityAuditLog, SecurityEventType } from './entities/security-audit.entity';
+import {
+  SecurityAuditLog,
+  SecurityEventType,
+} from './entities/security-audit.entity';
 
 // Providers
 import { RedisProvider } from '../common/providers/redis.provider';
@@ -48,7 +54,10 @@ describe('API Key Authentication Integration - Security Tests', () => {
       pipeline: jest.fn(() => ({
         incr: jest.fn(),
         expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([[null, 1], [null, 'OK']]),
+        exec: jest.fn().mockResolvedValue([
+          [null, 1],
+          [null, 'OK'],
+        ]),
       })),
     };
 
@@ -60,7 +69,7 @@ describe('API Key Authentication Integration - Security Tests', () => {
         CryptoService,
         SecurityAuditService,
         Reflector,
-        
+
         // Repository mocks
         {
           provide: getRepositoryToken(ApiKey),
@@ -70,7 +79,7 @@ describe('API Key Authentication Integration - Security Tests', () => {
           provide: getRepositoryToken(SecurityAuditLog),
           useValue: MockFactory.createMockRepository<SecurityAuditLog>(),
         },
-        
+
         // Provider mocks
         {
           provide: RedisProvider,
@@ -86,7 +95,7 @@ describe('API Key Authentication Integration - Security Tests', () => {
     apiKeyGuard = module.get<SecureApiKeyGuard>(SecureApiKeyGuard);
     cryptoService = module.get<CryptoService>(CryptoService);
     auditService = module.get<SecurityAuditService>(SecurityAuditService);
-    
+
     // Get repository mocks
     apiKeyRepository = module.get(getRepositoryToken(ApiKey));
     auditRepository = module.get(getRepositoryToken(SecurityAuditLog));
@@ -104,7 +113,7 @@ describe('API Key Authentication Integration - Security Tests', () => {
     // Create a real API key using the crypto service
     const plainTextKey = cryptoService.generateApiKey();
     const hashedKey = await cryptoService.hashApiKey(plainTextKey);
-    
+
     const apiKeyEntity: ApiKey = {
       id: randomUUID(),
       hashedKey,
@@ -119,9 +128,11 @@ describe('API Key Authentication Integration - Security Tests', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       isExpired: jest.fn().mockReturnValue(false),
-      hasScope: jest.fn().mockImplementation((scope: string) => 
-        ['notifications:create', 'notifications:read'].includes(scope)
-      ),
+      hasScope: jest
+        .fn()
+        .mockImplementation((scope: string) =>
+          ['notifications:create', 'notifications:read'].includes(scope),
+        ),
       canPerformOperation: jest.fn().mockReturnValue(true),
     } as any;
 
@@ -135,7 +146,7 @@ describe('API Key Authentication Integration - Security Tests', () => {
   function createMockExecutionContext(
     requireApiKey: boolean = true,
     requiredScope?: string,
-    request?: Partial<AuthenticatedRequest>
+    request?: Partial<AuthenticatedRequest>,
   ): ExecutionContext {
     const mockRequest: AuthenticatedRequest = {
       headers: {},
@@ -148,7 +159,8 @@ describe('API Key Authentication Integration - Security Tests', () => {
     } as any;
 
     const reflector = module.get<Reflector>(Reflector);
-    jest.spyOn(reflector, 'getAllAndOverride')
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
       .mockReturnValueOnce(requireApiKey)
       .mockReturnValueOnce(requiredScope);
 
@@ -181,15 +193,15 @@ describe('API Key Authentication Integration - Security Tests', () => {
 
       // Assert
       expect(result).toBe(true);
-      
+
       // Verify the complete flow
       expect(apiKeyRepository.findOne).toHaveBeenCalledWith({
         where: { hashedKey: validApiKeyData.hash, isActive: true },
       });
-      
+
       expect(apiKeyRepository.update).toHaveBeenCalledWith(
         validApiKeyData.entity.id,
-        { lastUsedAt: expect.any(Date) }
+        { lastUsedAt: expect.any(Date) },
       );
 
       // Verify audit logging
@@ -199,7 +211,7 @@ describe('API Key Authentication Integration - Security Tests', () => {
           apiKeyId: validApiKeyData.entity.id,
           ipAddress: TEST_IP,
           userAgent: TEST_USER_AGENT,
-        })
+        }),
       );
 
       // Verify request metadata is attached
@@ -214,7 +226,10 @@ describe('API Key Authentication Integration - Security Tests', () => {
       const pipeline = {
         incr: jest.fn(),
         expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([[null, 950], [null, 'OK']]), // Near limit
+        exec: jest.fn().mockResolvedValue([
+          [null, 950],
+          [null, 'OK'],
+        ]), // Near limit
       };
       redisMock.pipeline.mockReturnValue(pipeline);
 
@@ -234,7 +249,7 @@ describe('API Key Authentication Integration - Security Tests', () => {
 
       // Assert
       expect(result).toBe(true);
-      
+
       // Verify rate limiting was checked
       expect(redisMock.pipeline).toHaveBeenCalled();
       expect(pipeline.incr).toHaveBeenCalled();
@@ -242,7 +257,7 @@ describe('API Key Authentication Integration - Security Tests', () => {
 
       // Verify usage counters were incremented
       expect(redisMock.incr).toHaveBeenCalledWith(
-        expect.stringContaining(`api_key_usage:${validApiKeyData.entity.id}`)
+        expect.stringContaining(`api_key_usage:${validApiKeyData.entity.id}`),
       );
     });
 
@@ -262,8 +277,10 @@ describe('API Key Authentication Integration - Security Tests', () => {
       validApiKeyData.entity.hasScope = jest.fn().mockReturnValue(false);
 
       // Act & Assert
-      await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(UnauthorizedException);
-      
+      await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
       // Verify suspicious activity was logged
       expect(auditRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -273,7 +290,7 @@ describe('API Key Authentication Integration - Security Tests', () => {
             requiredScope: 'admin:delete',
             availableScopes: validApiKeyData.entity.scopes,
           }),
-        })
+        }),
       );
     });
   });
@@ -299,16 +316,20 @@ describe('API Key Authentication Integration - Security Tests', () => {
           },
         });
 
-        await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+        await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(
+          UnauthorizedException,
+        );
       }
 
       // Assert - All attempts should be logged
       expect(auditRepository.save).toHaveBeenCalledTimes(invalidKeys.length);
-      
+
       // All logs should be invalid attempts from same IP
-      auditRepository.save.mock.calls.forEach(call => {
+      auditRepository.save.mock.calls.forEach((call) => {
         const logEntry = call[0];
-        expect(logEntry.eventType).toBe(SecurityEventType.INVALID_API_KEY_ATTEMPT);
+        expect(logEntry.eventType).toBe(
+          SecurityEventType.INVALID_API_KEY_ATTEMPT,
+        );
         expect(logEntry.ipAddress).toBe(TEST_IP);
       });
     });
@@ -318,7 +339,10 @@ describe('API Key Authentication Integration - Security Tests', () => {
       const pipeline = {
         incr: jest.fn(),
         expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([[null, 1001], [null, 'OK']]), // Exceeds limit
+        exec: jest.fn().mockResolvedValue([
+          [null, 1001],
+          [null, 'OK'],
+        ]), // Exceeds limit
       };
       redisMock.pipeline.mockReturnValue(pipeline);
 
@@ -332,8 +356,10 @@ describe('API Key Authentication Integration - Security Tests', () => {
       auditRepository.save.mockResolvedValue({} as SecurityAuditLog);
 
       // Act & Assert
-      await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(UnauthorizedException);
-      
+      await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
       // Verify rate limit exceeded is logged
       expect(auditRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -346,7 +372,7 @@ describe('API Key Authentication Integration - Security Tests', () => {
               current: 1001,
             }),
           }),
-        })
+        }),
       );
     });
 
@@ -356,8 +382,8 @@ describe('API Key Authentication Integration - Security Tests', () => {
         "'; DROP TABLE api_keys; --ABCDEFGHIJKLMNOPQRSTUVWX",
         "'||'1'='1'--ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789",
         "'; UPDATE api_keys SET isActive=1; --ABCDEFGHIJK",
-        "../../etc/passwd" + "A".repeat(27), // Path traversal + padding
-        "<script>alert(1)</script>" + "B".repeat(18), // XSS + padding
+        '../../etc/passwd' + 'A'.repeat(27), // Path traversal + padding
+        '<script>alert(1)</script>' + 'B'.repeat(18), // XSS + padding
       ];
 
       auditRepository.save.mockResolvedValue({} as SecurityAuditLog);
@@ -371,11 +397,18 @@ describe('API Key Authentication Integration - Security Tests', () => {
           },
         });
 
-        await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(UnauthorizedException);
-        
+        await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(
+          UnauthorizedException,
+        );
+
         // Verify invalid format is detected
-        const lastCall = auditRepository.save.mock.calls[auditRepository.save.mock.calls.length - 1];
-        expect(lastCall[0].eventType).toBe(SecurityEventType.INVALID_API_KEY_ATTEMPT);
+        const lastCall =
+          auditRepository.save.mock.calls[
+            auditRepository.save.mock.calls.length - 1
+          ];
+        expect(lastCall[0].eventType).toBe(
+          SecurityEventType.INVALID_API_KEY_ATTEMPT,
+        );
         expect(lastCall[0].hashedKey).toBe('invalid_format');
       }
     });
@@ -400,20 +433,20 @@ describe('API Key Authentication Integration - Security Tests', () => {
 
       // Assert - Should still work but log the malicious headers
       expect(result).toBe(true);
-      
+
       // Verify audit log contains the malicious data for analysis
       expect(auditRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: SecurityEventType.API_KEY_USED,
           userAgent: expect.stringContaining('Normal-Agent'),
           ipAddress: expect.stringContaining('127.0.0.1'),
-        })
+        }),
       );
     });
 
     it('should detect expired key usage attempts', async () => {
       // Arrange - Expired API key
-      const expiredKey = { 
+      const expiredKey = {
         ...validApiKeyData.entity,
         expiresAt: new Date(Date.now() - 86400000), // 24 hours ago
       } as ApiKey;
@@ -430,15 +463,17 @@ describe('API Key Authentication Integration - Security Tests', () => {
       auditRepository.save.mockResolvedValue({} as SecurityAuditLog);
 
       // Act & Assert
-      await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(UnauthorizedException);
-      
+      await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
       // Verify expired key attempt is logged
       expect(auditRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: SecurityEventType.API_KEY_EXPIRED,
           apiKeyId: expiredKey.id,
           ipAddress: TEST_IP,
-        })
+        }),
       );
     });
   });
@@ -453,18 +488,24 @@ describe('API Key Authentication Integration - Security Tests', () => {
         },
       });
 
-      apiKeyRepository.findOne.mockRejectedValue(new Error('Database connection failed'));
+      apiKeyRepository.findOne.mockRejectedValue(
+        new Error('Database connection failed'),
+      );
 
       // Act & Assert
-      await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(UnauthorizedException);
-      
+      await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
       // Should get generic authentication error, not expose database error
       try {
         await apiKeyGuard.canActivate(context);
       } catch (error) {
         const response = (error as UnauthorizedException).getResponse() as any;
         expect(response.code).toBe('AUTH_ERROR');
-        expect(response.message).toBe('An error occurred during authentication');
+        expect(response.message).toBe(
+          'An error occurred during authentication',
+        );
       }
     });
 
@@ -490,13 +531,13 @@ describe('API Key Authentication Integration - Security Tests', () => {
 
       // Assert
       expect(result).toBe(true);
-      
+
       // Should still log API key usage despite Redis failure
       expect(auditRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: SecurityEventType.API_KEY_USED,
           apiKeyId: validApiKeyData.entity.id,
-        })
+        }),
       );
     });
 
@@ -508,14 +549,17 @@ describe('API Key Authentication Integration - Security Tests', () => {
             'x-api-key': validApiKeyData.key,
             'user-agent': TEST_USER_AGENT,
           },
-        })
+        }),
       );
 
       // Set up rate limiting to allow all requests
       const pipeline = {
         incr: jest.fn(),
         expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([[null, 50], [null, 'OK']]), // Well within limit
+        exec: jest.fn().mockResolvedValue([
+          [null, 50],
+          [null, 'OK'],
+        ]), // Well within limit
       };
       redisMock.pipeline.mockReturnValue(pipeline);
 
@@ -524,11 +568,13 @@ describe('API Key Authentication Integration - Security Tests', () => {
       auditRepository.save.mockResolvedValue({} as SecurityAuditLog);
 
       // Act - Process all requests concurrently
-      const promises = contexts.map(context => apiKeyGuard.canActivate(context));
+      const promises = contexts.map((context) =>
+        apiKeyGuard.canActivate(context),
+      );
       const results = await Promise.all(promises);
 
       // Assert - All should succeed
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result).toBe(true);
       });
 
@@ -562,15 +608,14 @@ describe('API Key Authentication Integration - Security Tests', () => {
       });
 
       // Mock database to return appropriate keys
-      apiKeyRepository.findOne
-        .mockImplementation(async (options: any) => {
-          if (options.where.hashedKey === validApiKeyData.hash) {
-            return validApiKeyData.entity;
-          } else if (options.where.hashedKey === secondHash) {
-            return secondEntity;
-          }
-          return null;
-        });
+      apiKeyRepository.findOne.mockImplementation(async (options: any) => {
+        if (options.where.hashedKey === validApiKeyData.hash) {
+          return validApiKeyData.entity;
+        } else if (options.where.hashedKey === secondHash) {
+          return secondEntity;
+        }
+        return null;
+      });
 
       apiKeyRepository.update.mockResolvedValue(undefined as any);
       auditRepository.save.mockResolvedValue({} as SecurityAuditLog);
@@ -625,14 +670,17 @@ describe('API Key Authentication Integration - Security Tests', () => {
             'x-api-key': validApiKeyData.key,
             'user-agent': `LoadTest${i}/1.0`,
           },
-        })
+        }),
       );
 
       // Set up successful responses
       const pipeline = {
         incr: jest.fn(),
         expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([[null, 10], [null, 'OK']]),
+        exec: jest.fn().mockResolvedValue([
+          [null, 10],
+          [null, 'OK'],
+        ]),
       };
       redisMock.pipeline.mockReturnValue(pipeline);
 
@@ -642,13 +690,15 @@ describe('API Key Authentication Integration - Security Tests', () => {
 
       // Act
       const startTime = Date.now();
-      const promises = contexts.map(context => apiKeyGuard.canActivate(context));
+      const promises = contexts.map((context) =>
+        apiKeyGuard.canActivate(context),
+      );
       const results = await Promise.all(promises);
       const endTime = Date.now();
 
       // Assert
-      results.forEach(result => expect(result).toBe(true));
-      
+      results.forEach((result) => expect(result).toBe(true));
+
       const duration = endTime - startTime;
       expect(duration).toBeLessThan(5000); // Should complete in reasonable time
 
@@ -663,7 +713,10 @@ describe('API Key Authentication Integration - Security Tests', () => {
         headers: {
           'x-api-key': validApiKeyData.key,
           'user-agent': largeUserAgent,
-          'x-forwarded-for': Array.from({ length: 50 }, (_, i) => `192.168.1.${i}`).join(', '),
+          'x-forwarded-for': Array.from(
+            { length: 50 },
+            (_, i) => `192.168.1.${i}`,
+          ).join(', '),
         },
       });
 
@@ -676,13 +729,13 @@ describe('API Key Authentication Integration - Security Tests', () => {
 
       // Assert
       expect(result).toBe(true);
-      
+
       // Should handle large metadata gracefully
       expect(auditRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           userAgent: largeUserAgent,
           ipAddress: '192.168.1.0', // First IP from forwarded list
-        })
+        }),
       );
     });
   });
@@ -717,13 +770,13 @@ describe('API Key Authentication Integration - Security Tests', () => {
             endpoint: TEST_ENDPOINT,
           }),
           message: `API key used for ${TEST_ENDPOINT}`,
-        })
+        }),
       );
 
       // Verify last used timestamp was updated
       expect(apiKeyRepository.update).toHaveBeenCalledWith(
         validApiKeyData.entity.id,
-        { lastUsedAt: expect.any(Date) }
+        { lastUsedAt: expect.any(Date) },
       );
     });
 
@@ -741,7 +794,9 @@ describe('API Key Authentication Integration - Security Tests', () => {
       auditRepository.save.mockResolvedValue({} as SecurityAuditLog);
 
       // Act & Assert
-      await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(apiKeyGuard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
 
       // Verify audit trail for failed attempt
       expect(auditRepository.save).toHaveBeenCalledWith(
@@ -755,7 +810,7 @@ describe('API Key Authentication Integration - Security Tests', () => {
             endpoint: TEST_ENDPOINT,
           }),
           message: `Invalid API key attempt from ${TEST_IP} for ${TEST_ENDPOINT}`,
-        })
+        }),
       );
     });
   });

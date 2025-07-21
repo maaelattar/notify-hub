@@ -16,10 +16,11 @@ import { Notification } from '../entities/notification.entity';
 import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationPriority } from '../enums/notification-priority.enum';
 import { NotificationConfig } from '../config/notification.config';
-import { NotificationProducer } from './notification.producer';
 import { NotificationValidatorService } from './notification-validator.service';
+import { NotificationOrchestrationService } from './notification-orchestration.service';
 import { Recipient } from '../value-objects/recipient.value-object';
 import { NotificationContent } from '../value-objects/notification-content.value-object';
+import { Pagination } from '../../../common/value-objects/pagination.vo';
 
 @Injectable()
 export class NotificationService {
@@ -28,10 +29,9 @@ export class NotificationService {
 
   constructor(
     private readonly notificationRepository: NotificationRepository,
-    private readonly notificationProducer: NotificationProducer,
     private readonly configService: ConfigService,
-    private readonly dataSource: DataSource,
     private readonly validatorService: NotificationValidatorService,
+    private readonly orchestrationService: NotificationOrchestrationService,
   ) {
     this.config = this.configService.get<NotificationConfig>('notification')!;
   }
@@ -41,8 +41,9 @@ export class NotificationService {
       `Creating notification for ${dto.recipient} via ${dto.channel}`,
     );
 
-    // Comprehensive business validation
-    const validationResult = await this.validatorService.validateWithCategories(dto);
+    // Business Logic: Comprehensive validation
+    const validationResult =
+      await this.validatorService.validateWithCategories(dto);
     if (!validationResult.isValid) {
       this.logger.warn(`Validation failed for notification creation`, {
         recipient: dto.recipient,
@@ -51,10 +52,10 @@ export class NotificationService {
         warningErrors: validationResult.warningErrors.length,
         errors: validationResult.allErrors,
       });
-      
+
       throw new BadRequestException({
         message: 'Notification validation failed',
-        errors: validationResult.allErrors.map(error => ({
+        errors: validationResult.allErrors.map((error) => ({
           field: error.field,
           code: error.code,
           message: error.message,
@@ -72,62 +73,58 @@ export class NotificationService {
       });
     }
 
-    return await this.dataSource.transaction(async (manager) => {
-      // Create value objects with enhanced validation and business logic
-      let recipientVO: Recipient | null = null;
-      let contentVO: NotificationContent | null = null;
+    // Business Logic: Prepare notification data with value objects
+    const notificationData = this.prepareNotificationData(dto);
 
-      try {
-        // Create recipient value object with channel context
-        recipientVO = Recipient.create(dto.recipient, dto.channel);
-        
-        // Create content value object with channel-specific format detection
-        contentVO = NotificationContent.create(dto.content, dto.channel);
-      } catch (error) {
-        this.logger.warn('Failed to create value objects, falling back to legacy format', {
+    // Orchestration: Handle transaction and queue management
+    const notification = await this.orchestrationService.createNotification(
+      notificationData,
+      NotificationPriority.NORMAL,
+    );
+
+    return NotificationResponseDto.fromEntity(notification);
+  }
+
+  /**
+   * Pure business logic: Prepare notification data with value objects
+   */
+  private prepareNotificationData(
+    dto: CreateNotificationDto,
+  ): Partial<Notification> {
+    // Create value objects with enhanced validation and business logic
+    let recipientVO: Recipient | null = null;
+    let contentVO: NotificationContent | null = null;
+
+    try {
+      // Create recipient value object with channel context
+      recipientVO = Recipient.create(dto.recipient, dto.channel);
+
+      // Create content value object with channel-specific format detection
+      contentVO = NotificationContent.create(dto.content, dto.channel);
+    } catch (error) {
+      this.logger.warn(
+        'Failed to create value objects, falling back to legacy format',
+        {
           recipient: dto.recipient,
           channel: dto.channel,
           error: error instanceof Error ? error.message : 'Unknown error',
-        });
-        // Continue with legacy fields only
-      }
-
-      // Create notification entity within transaction
-      const notificationRepo = manager.getRepository(Notification);
-      const notification = await notificationRepo.save({
-        channel: dto.channel,
-        
-        // Legacy fields (backward compatibility)
-        recipient: dto.recipient,
-        subject: dto.subject,
-        content: dto.content,
-        
-        // New value object fields (preferred)
-        recipientVO,
-        contentVO,
-        
-        metadata: dto.metadata || {},
-        scheduledFor: dto.scheduledFor ? new Date(dto.scheduledFor) : null,
-        status: NotificationStatus.CREATED,
-      });
-
-      // Queue for processing with normal priority by default
-      await this.notificationProducer.addNotificationJob(
-        notification.id,
-        NotificationPriority.NORMAL,
-        notification.scheduledFor || undefined,
-        notification.metadata,
+        },
       );
+      // Continue with legacy fields only
+    }
 
-      // Update status to queued
-      await this.notificationRepository.updateStatus(
-        notification.id,
-        NotificationStatus.QUEUED,
-      );
-
-      this.logger.log(`Notification ${notification.id} created and queued`);
-      return NotificationResponseDto.fromEntity(notification);
-    });
+    return {
+      channel: dto.channel,
+      // Legacy fields (backward compatibility)
+      recipient: dto.recipient,
+      subject: dto.subject,
+      content: dto.content,
+      // New value object fields (preferred)
+      recipientVO,
+      contentVO,
+      metadata: dto.metadata || {},
+      scheduledFor: dto.scheduledFor ? new Date(dto.scheduledFor) : null,
+    };
   }
 
   async findOne(id: string): Promise<NotificationResponseDto> {
@@ -147,11 +144,12 @@ export class NotificationService {
   async findAll(
     filters: NotificationFilterDto,
   ): Promise<PaginatedResponseDto<NotificationResponseDto>> {
-    const page = filters.page || 1;
-    const limit = Math.min(
-      filters.limit || this.config.defaultPageSize,
-      this.config.maxPageSize,
-    );
+    const pagination = filters.pagination || new Pagination();
+    const limit = Math.min(pagination.limit, this.config.maxPageSize);
+    const adjustedPagination =
+      pagination.limit > this.config.maxPageSize
+        ? pagination.withLimit(this.config.maxPageSize)
+        : pagination;
 
     const result = await this.notificationRepository.findAll(
       {
@@ -159,7 +157,7 @@ export class NotificationService {
         channel: filters.channel,
         recipient: filters.recipient,
       },
-      { page, limit },
+      { page: adjustedPagination.page, limit: adjustedPagination.limit },
     );
 
     const notificationDtos = result.data.map((n) =>
@@ -169,8 +167,7 @@ export class NotificationService {
     return PaginatedResponseDto.create(
       notificationDtos,
       result.total,
-      result.page,
-      result.limit,
+      adjustedPagination,
     );
   }
 
@@ -178,6 +175,7 @@ export class NotificationService {
     id: string,
     dto: UpdateNotificationDto,
   ): Promise<NotificationResponseDto> {
+    // Business Logic: Validate existence and business rules
     const notification = await this.notificationRepository.findById(id);
 
     if (!notification) {
@@ -189,6 +187,31 @@ export class NotificationService {
     }
 
     // Business rule: Can't update sent notifications
+    this.validateUpdateAllowed(notification, id);
+
+    // Business Logic: Prepare update data
+    const updateData = this.prepareUpdateData(dto, notification, id);
+
+    // Check if requeue is needed
+    const shouldRequeue =
+      dto.scheduledFor !== undefined &&
+      notification.scheduledFor?.getTime() !==
+        updateData.scheduledFor?.getTime();
+
+    // Orchestration: Handle transaction and queue management
+    const updated = await this.orchestrationService.updateNotification(
+      id,
+      updateData,
+      shouldRequeue,
+    );
+
+    return NotificationResponseDto.fromEntity(updated);
+  }
+
+  /**
+   * Pure business logic: Validate that notification can be updated
+   */
+  private validateUpdateAllowed(notification: Notification, id: string): void {
     if (
       notification.status === NotificationStatus.SENT ||
       notification.status === NotificationStatus.DELIVERED
@@ -207,22 +230,37 @@ export class NotificationService {
         },
       });
     }
+  }
 
-    // Build update object, excluding undefined values
+  /**
+   * Pure business logic: Prepare update data with value objects
+   */
+  private prepareUpdateData(
+    dto: UpdateNotificationDto,
+    notification: Notification,
+    id: string,
+  ): Partial<Notification> {
     const updateData: Partial<Notification> = {};
+
     if (dto.subject !== undefined) updateData.subject = dto.subject;
     if (dto.content !== undefined) {
       updateData.content = dto.content;
-      
+
       // Update content value object if content is being updated
       try {
-        updateData.contentVO = NotificationContent.create(dto.content, notification.channel);
+        updateData.contentVO = NotificationContent.create(
+          dto.content,
+          notification.channel,
+        );
       } catch (error) {
-        this.logger.warn('Failed to create content value object during update', {
-          notificationId: id,
-          channel: notification.channel,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
+        this.logger.warn(
+          'Failed to create content value object during update',
+          {
+            notificationId: id,
+            channel: notification.channel,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          },
+        );
         // Keep legacy content field, set contentVO to null
         updateData.contentVO = null;
       }
@@ -235,30 +273,11 @@ export class NotificationService {
     }
     if (dto.status !== undefined) updateData.status = dto.status;
 
-    return await this.dataSource.transaction(async (manager) => {
-      // Apply updates within transaction
-      const notificationRepo = manager.getRepository(Notification);
-      await notificationRepo.update(id, updateData);
-      const updated = await notificationRepo.findOne({ where: { id } });
-
-      if (!updated) {
-        throw new Error('Failed to retrieve updated notification');
-      }
-
-      // Re-queue if schedule changed (outside transaction)
-      if (
-        dto.scheduledFor !== undefined &&
-        notification.scheduledFor?.getTime() !== updated.scheduledFor?.getTime()
-      ) {
-        await this.requeueNotification(updated.id, updated.scheduledFor);
-      }
-
-      this.logger.log(`Notification ${id} updated`);
-      return NotificationResponseDto.fromEntity(updated);
-    });
+    return updateData;
   }
 
   async cancel(id: string): Promise<NotificationResponseDto> {
+    // Business Logic: Validate existence
     const notification = await this.notificationRepository.findById(id);
 
     if (!notification) {
@@ -269,7 +288,7 @@ export class NotificationService {
       });
     }
 
-    // Use entity method for business logic
+    // Business Logic: Use entity method for business rules
     try {
       notification.markAsCancelled();
     } catch (error) {
@@ -290,35 +309,18 @@ export class NotificationService {
       });
     }
 
-    return await this.dataSource.transaction(async (manager) => {
-      // Update notification status within transaction
-      const notificationRepo = manager.getRepository(Notification);
-      await notificationRepo.update(id, {
-        status: notification.status,
-      });
+    // Orchestration: Handle transaction and queue cleanup
+    const cancelledNotification =
+      await this.orchestrationService.cancelNotification(
+        id,
+        notification.status,
+      );
 
-      // Remove from queue (outside transaction but after DB commit)
-      try {
-        const removed =
-          await this.notificationProducer.removeNotificationJob(id);
-        if (removed) {
-          this.logger.debug(`Removed job for notification ${id}`);
-        } else {
-          this.logger.debug(`No job found to remove for notification ${id}`);
-        }
-      } catch (error) {
-        // Job might not exist or already processed, which is fine
-        this.logger.debug(
-          `Could not remove job for notification ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        );
-      }
-
-      this.logger.log(`Notification ${id} cancelled`);
-      return NotificationResponseDto.fromEntity(notification);
-    });
+    return NotificationResponseDto.fromEntity(cancelledNotification);
   }
 
   async retry(id: string): Promise<NotificationResponseDto> {
+    // Business Logic: Validate existence
     const notification = await this.notificationRepository.findById(id);
 
     if (!notification) {
@@ -329,6 +331,7 @@ export class NotificationService {
       });
     }
 
+    // Business Logic: Validate retry eligibility using business rules
     if (!notification.canRetry(this.config.maxRetries)) {
       this.logger.warn(
         `Attempted to retry notification that cannot be retried`,
@@ -350,27 +353,14 @@ export class NotificationService {
       });
     }
 
-    // Reset status and queue again
-    notification.status = NotificationStatus.CREATED;
-    await this.notificationRepository.update(id, {
-      status: notification.status,
-    });
-
-    // Queue with high priority for retries
-    await this.notificationProducer.addNotificationJob(
+    // Orchestration: Handle retry queue management
+    await this.orchestrationService.retryNotification(
       id,
-      NotificationPriority.HIGH,
-      undefined, // No delay for retries
-      { retryAttempt: true },
+      NotificationStatus.CREATED,
     );
 
-    // Update status to queued
-    await this.notificationRepository.updateStatus(
-      id,
-      NotificationStatus.QUEUED,
-    );
-
-    this.logger.log(`Notification ${id} queued for retry`);
+    // Return updated notification for response
+    notification.status = NotificationStatus.QUEUED;
     return NotificationResponseDto.fromEntity(notification);
   }
 
@@ -400,38 +390,5 @@ export class NotificationService {
         failedAt: n.updatedAt,
       })),
     };
-  }
-
-  // Internal methods
-  private async requeueNotification(
-    notificationId: string,
-    scheduledFor: Date | null,
-  ): Promise<void> {
-    // Remove existing job
-    try {
-      await this.notificationProducer.removeNotificationJob(notificationId);
-      this.logger.debug(
-        `Removed existing job for notification ${notificationId}`,
-      );
-    } catch (error) {
-      // Job might not exist, which is fine
-      this.logger.debug(
-        `No existing job found for notification ${notificationId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
-
-    // Add new job with updated schedule
-    await this.notificationProducer.addNotificationJob(
-      notificationId,
-      NotificationPriority.NORMAL,
-      scheduledFor || undefined,
-      { rescheduled: true },
-    );
-
-    // Update status to queued
-    await this.notificationRepository.updateStatus(
-      notificationId,
-      NotificationStatus.QUEUED,
-    );
   }
 }

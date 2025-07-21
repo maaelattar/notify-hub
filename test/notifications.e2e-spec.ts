@@ -10,6 +10,7 @@ import { NotificationChannel } from '../src/modules/notifications/enums/notifica
 import { NotificationStatus } from '../src/modules/notifications/enums/notification-status.enum';
 import { NotificationPriority } from '../src/modules/notifications/enums/notification-priority.enum';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
+import { ErrorGuidanceFactory } from '../src/common/services/error-guidance.factory';
 import { CorrelationIdMiddleware } from '../src/common/middleware/correlation-id.middleware';
 import { LoggingInterceptor } from '../src/common/interceptors/logging.interceptor';
 import { ApiVersionInterceptor } from '../src/common/interceptors/api-version.interceptor';
@@ -69,7 +70,10 @@ describe('Notifications (E2E)', () => {
       }),
     );
 
-    app.useGlobalFilters(new GlobalExceptionFilter());
+    const mockErrorGuidanceFactory = {
+      createGuidance: jest.fn().mockReturnValue(null),
+    } as unknown as ErrorGuidanceFactory;
+    app.useGlobalFilters(new GlobalExceptionFilter(mockErrorGuidanceFactory));
     app.useGlobalInterceptors(
       new LoggingInterceptor(),
       new ApiVersionInterceptor(),
