@@ -10,7 +10,7 @@ import {
 import { Request, Response } from 'express';
 import { QueryFailedError } from 'typeorm';
 import { ErrorResponseDto } from '../dto/error-response.dto';
-import { RequestWithCorrelationId } from '../middleware/correlation-id.middleware';
+import { RequestWithCorrelationId } from '../../modules/security/middleware/correlation-id.middleware';
 import { ErrorGuidanceFactory } from '../services/error-guidance.factory';
 
 @Catch()

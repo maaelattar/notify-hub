@@ -7,17 +7,17 @@ import { Reflector } from '@nestjs/core';
 import {
   ApiKey,
   ApiKeyRateLimit,
-} from '../modules/auth/entities/api-key.entity';
+} from '../modules/security/entities/api-key.entity';
 import {
   SecurityAuditLog,
   SecurityEventType,
   SecurityEventMetadata,
-} from '../modules/auth/entities/security-audit.entity';
+} from '../modules/security/entities/security-audit.entity';
 import {
   CreateApiKeyRequest,
   ApiKeyValidationResult,
-} from '../modules/auth/services/secure-api-key.service';
-import { AuthenticatedRequest } from '../modules/auth/guards/secure-api-key.guard';
+} from '../modules/security/services/api-key.service';
+import { AuthenticatedRequest } from '../modules/security/guards/api-key.guard';
 
 /**
  * Security-focused test data builder for API key authentication system
@@ -340,9 +340,9 @@ export class SecurityMockFactory {
   }
 
   /**
-   * Create a mock SecureApiKeyService with configurable behavior
+   * Create a mock ApiKeyService with configurable behavior
    */
-  static createMockSecureApiKeyService(
+  static createMockApiKeyService(
     options: {
       validationResult?: ApiKeyValidationResult;
       shouldThrow?: boolean;

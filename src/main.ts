@@ -5,10 +5,11 @@ import { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 import { validationExceptionFactory } from './common/factories/validation-exception.factory';
 import { RateLimitHeaderInterceptor } from './common/interceptors/rate-limit-header.interceptor';
-import {
-  CorrelationIdMiddleware,
-  RequestWithCorrelationId,
-} from './modules/security/middleware/correlation-id.middleware';
+import { CorrelationIdMiddleware } from './modules/security/middleware/correlation-id.middleware';
+
+export interface RequestWithCorrelationId extends Request {
+  correlationId: string;
+}
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ApiVersionInterceptor } from './common/interceptors/api-version.interceptor';
 import { APP_CONSTANTS } from './common/constants/app.constants';

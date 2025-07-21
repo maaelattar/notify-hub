@@ -10,7 +10,7 @@ import {
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Request } from 'express';
-import { RequestWithCorrelationId } from '../middleware/correlation-id.middleware';
+import { RequestWithCorrelationId } from '../../modules/security/middleware/correlation-id.middleware';
 import {
   ValidationErrorContext,
   SecurityErrorContext,

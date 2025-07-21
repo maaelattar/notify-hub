@@ -8,7 +8,7 @@ import {
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
-import { RequestWithCorrelationId } from '../middleware/correlation-id.middleware';
+import { RequestWithCorrelationId } from '../../modules/security/middleware/correlation-id.middleware';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {

@@ -11,7 +11,7 @@ import { NotificationStatus } from '../src/modules/notifications/enums/notificat
 import { NotificationPriority } from '../src/modules/notifications/enums/notification-priority.enum';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ErrorGuidanceFactory } from '../src/common/services/error-guidance.factory';
-import { CorrelationIdMiddleware } from '../src/common/middleware/correlation-id.middleware';
+import { CorrelationIdMiddleware } from '../src/modules/security/middleware/correlation-id.middleware';
 import { LoggingInterceptor } from '../src/common/interceptors/logging.interceptor';
 import { ApiVersionInterceptor } from '../src/common/interceptors/api-version.interceptor';
 

@@ -33,8 +33,8 @@ export interface CreateApiKeyResponse {
 }
 
 @Injectable()
-export class SecureApiKeyService {
-  private readonly logger = new Logger(SecureApiKeyService.name);
+export class ApiKeyService {
+  private readonly logger = new Logger(ApiKeyService.name);
 
   constructor(
     @InjectRepository(ApiKey)
@@ -52,7 +52,7 @@ export class SecureApiKeyService {
   ): Promise<CreateApiKeyResponse> {
     // Generate secure API key
     const plainTextKey = this.cryptoService.generateApiKey();
-    const hashedKey = await this.cryptoService.hashApiKey(plainTextKey);
+    const hashedKey = this.cryptoService.hashApiKey(plainTextKey);
 
     // Create entity
     const apiKey = new ApiKey();
@@ -114,7 +114,7 @@ export class SecureApiKeyService {
       }
 
       // Hash the key for lookup
-      const hashedKey = await this.cryptoService.hashApiKey(keyString);
+      const hashedKey = this.cryptoService.hashApiKey(keyString);
 
       // Check rate limiting first (before database lookup)
       const rateLimitResult = await this.checkRateLimit(

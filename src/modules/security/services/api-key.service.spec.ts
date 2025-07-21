@@ -3,10 +3,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UnauthorizedException } from '@nestjs/common';
 import {
-  SecureApiKeyService,
+  ApiKeyService,
   ApiKeyValidationResult,
   CreateApiKeyRequest,
-} from './secure-api-key.service';
+} from './api-key.service';
 import { ApiKey, ApiKeyRateLimit } from '../entities/api-key.entity';
 import { CryptoService } from './crypto.service';
 import { SecurityAuditService } from './security-audit.service';
@@ -14,8 +14,8 @@ import { RedisProvider } from '../../common/providers/redis.provider';
 import { MockFactory, TestDataBuilder } from '../../../test/test-utils';
 import { randomUUID } from 'crypto';
 
-describe('SecureApiKeyService - Security Tests', () => {
-  let service: SecureApiKeyService;
+describe('ApiKeyService - Security Tests', () => {
+  let service: ApiKeyService;
   let apiKeyRepository: jest.Mocked<Repository<ApiKey>>;
   let cryptoService: jest.Mocked<CryptoService>;
   let auditService: jest.Mocked<SecurityAuditService>;
@@ -50,7 +50,7 @@ describe('SecureApiKeyService - Security Tests', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        SecureApiKeyService,
+        ApiKeyService,
         {
           provide: getRepositoryToken(ApiKey),
           useValue: MockFactory.createMockRepository<ApiKey>(),
@@ -84,7 +84,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       ],
     }).compile();
 
-    service = module.get<SecureApiKeyService>(SecureApiKeyService);
+    service = module.get<ApiKeyService>(ApiKeyService);
     apiKeyRepository = module.get(getRepositoryToken(ApiKey));
     cryptoService = module.get(CryptoService);
     auditService = module.get(SecurityAuditService);
@@ -101,7 +101,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       };
 
       cryptoService.generateApiKey.mockReturnValue(VALID_API_KEY);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
       apiKeyRepository.save.mockResolvedValue({
         id: randomUUID(),
         hashedKey: VALID_HASH,
@@ -132,7 +132,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       };
 
       cryptoService.generateApiKey.mockReturnValue(VALID_API_KEY);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
 
       let savedEntity: ApiKey;
       apiKeyRepository.save.mockImplementation((entity: ApiKey) => {
@@ -204,7 +204,7 @@ describe('SecureApiKeyService - Security Tests', () => {
     it('should reject non-existent API keys', async () => {
       // Arrange
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
       apiKeyRepository.findOne.mockResolvedValue(null);
 
       // Act
@@ -233,7 +233,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       const inactiveKey = { ...validApiKey, isActive: false };
 
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
       apiKeyRepository.findOne.mockResolvedValue(null); // findOne with isActive: true returns null
 
       // Act
@@ -256,7 +256,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       expiredKey.isExpired = jest.fn().mockReturnValue(true);
 
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
       apiKeyRepository.findOne.mockResolvedValue(expiredKey);
 
       // Act
@@ -286,7 +286,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       validApiKey.hasScope = jest.fn().mockReturnValue(false);
 
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
       apiKeyRepository.findOne.mockResolvedValue(validApiKey);
 
       // Act
@@ -321,7 +321,7 @@ describe('SecureApiKeyService - Security Tests', () => {
     it('should accept valid API keys with proper scope', async () => {
       // Arrange
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
       apiKeyRepository.findOne.mockResolvedValue(validApiKey);
       apiKeyRepository.update.mockResolvedValue(undefined as any);
 
@@ -372,7 +372,7 @@ describe('SecureApiKeyService - Security Tests', () => {
   describe('Rate Limiting Security', () => {
     beforeEach(() => {
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
     });
 
     it('should enforce rate limits per API key', async () => {
@@ -536,7 +536,7 @@ describe('SecureApiKeyService - Security Tests', () => {
     it('should handle timing attacks on key validation', async () => {
       // Arrange
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
 
       // Test multiple invalid keys to ensure consistent timing
       const invalidKeys = ['invalid1', 'invalid2', 'invalid3'];
@@ -571,7 +571,7 @@ describe('SecureApiKeyService - Security Tests', () => {
     it('should prevent brute force attacks by logging attempts', async () => {
       // Arrange
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
-      cryptoService.hashApiKey.mockResolvedValue('different-hash-each-time');
+      cryptoService.hashApiKey.mockReturnValue('different-hash-each-time');
       apiKeyRepository.findOne.mockResolvedValue(null);
 
       const bruteForceAttempts = 5;
@@ -762,7 +762,7 @@ describe('SecureApiKeyService - Security Tests', () => {
     it('should handle database connection failures', async () => {
       // Arrange
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
       apiKeyRepository.findOne.mockRejectedValue(
         new Error('Database connection failed'),
       );
@@ -795,7 +795,7 @@ describe('SecureApiKeyService - Security Tests', () => {
       } as any;
 
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
       apiKeyRepository.findOne.mockResolvedValue(validApiKey);
       apiKeyRepository.update.mockResolvedValue(undefined as any);
 
@@ -833,7 +833,7 @@ describe('SecureApiKeyService - Security Tests', () => {
     it('should handle malformed rate limit responses from Redis', async () => {
       // Arrange
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
-      cryptoService.hashApiKey.mockResolvedValue(VALID_HASH);
+      cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
 
       const pipeline = {
         incr: jest.fn(),

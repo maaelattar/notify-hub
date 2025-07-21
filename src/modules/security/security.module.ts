@@ -1,80 +1,97 @@
 import { Module } from '@nestjs/common';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { TypeOrmModule } from '@nestjs/typeorm';
+// ThrottlerModule is configured in AppModule
 
-// Import existing AuthModule (well-organized, no need to break it apart)
-import { AuthModule } from '../auth/auth.module';
+// Entities
+import { ApiKey } from './entities/api-key.entity';
+import { SecurityAuditLog } from './entities/security-audit.entity';
 
-// Security Guards
+// Services
+import { ApiKeyService } from './services/api-key.service';
+import { CryptoService } from './services/crypto.service';
+import { SecurityAuditService } from './services/security-audit.service';
+
+// Guards
 import { ApiKeyGuard } from './guards/api-key.guard';
-import { CustomThrottlerGuard } from './guards/custom-throttler.guard';
+import { CustomThrottlerGuard } from './guards/throttler.guard';
 
-// Security Middleware
+// Middleware
 import { CorrelationIdMiddleware } from './middleware/correlation-id.middleware';
 import { SecurityHeadersMiddleware } from './middleware/security-headers.middleware';
 
+// Import SharedModule for RedisProvider
+import { SharedModule } from '../shared/shared.module';
+
 /**
- * SecurityModule - Centralized security, authentication, and authorization
+ * SecurityModule - Unified security, authentication, and authorization
  *
  * Features:
- * - API Key authentication and authorization
- * - Rate limiting and throttling
- * - Security headers and middleware
- * - Correlation ID tracking
- * - Crypto services and security auditing
- * - User authentication and session management
+ * - API Key authentication and authorization with comprehensive validation
+ * - Rate limiting and throttling with Redis-backed tracking
+ * - Security headers and middleware for protection
+ * - Correlation ID tracking for request tracing
+ * - Cryptographic services for secure key management
+ * - Security auditing and logging
  *
  * Architecture:
- * - Consolidates all security-related functionality
- * - Re-exports AuthModule for authentication services
- * - Provides guards, middleware, and security utilities
- * - Integrates with throttling and rate limiting
- * - Supports API key and user-based authentication
+ * - Consolidates all security-related functionality into one module
+ * - Provides comprehensive API key management with database persistence
+ * - Implements enterprise-grade security features
+ * - Supports scoped permissions and rate limiting per API key
+ * - Includes audit logging for security events
  *
  * Components:
- * - AuthModule: API key management, crypto services, security auditing
- * - Guards: API key validation, custom throttling
+ * - Entities: ApiKey, SecurityAuditLog for data persistence
+ * - Services: ApiKeyService, CryptoService, SecurityAuditService
+ * - Guards: ApiKeyGuard (advanced), ThrottlerGuard (custom)
  * - Middleware: Security headers, correlation ID tracking
- * - Services: Centralized security configuration
+ * - Decorators: RequireApiKey, RequireScope, SkipRateLimit
  */
 @Module({
   imports: [
-    // Import the existing, well-organized AuthModule
-    AuthModule,
-
-    // Throttling configuration (could be moved here from AppModule)
-    ThrottlerModule.forRoot([
-      {
-        name: 'default',
-        ttl: 60000, // 1 minute
-        limit: 100, // 100 requests per minute
-      },
-      {
-        name: 'strict',
-        ttl: 60000, // 1 minute
-        limit: 20, // 20 requests per minute for sensitive operations
-      },
-    ]),
+    // Database entities
+    TypeOrmModule.forFeature([ApiKey, SecurityAuditLog]),
+    
+    // Shared module for Redis and other providers
+    SharedModule,
+    
+    // ThrottlerModule is configured in AppModule to avoid duplication
   ],
   providers: [
+    // Core Services
+    ApiKeyService,
+    CryptoService,
+    SecurityAuditService,
+
     // Security Guards
     ApiKeyGuard,
     CustomThrottlerGuard,
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard,
+    },
 
-    // Security Middleware (provided for injection, but configured in main.ts)
+    // Security Middleware
     CorrelationIdMiddleware,
     SecurityHeadersMiddleware,
   ],
   exports: [
-    // Re-export the entire AuthModule
-    AuthModule,
+    // Export services for other modules
+    ApiKeyService,
+    CryptoService,
+    SecurityAuditService,
 
-    // Export security guards for use in other modules
+    // Export guards for use as providers
     ApiKeyGuard,
     CustomThrottlerGuard,
 
-    // Export middleware for configuration
+    // Export middleware for manual configuration
     CorrelationIdMiddleware,
     SecurityHeadersMiddleware,
+
+    // Export TypeORM module for entity access
+    TypeOrmModule,
   ],
 })
 export class SecurityModule {}

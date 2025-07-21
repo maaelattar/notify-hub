@@ -1,13 +1,8 @@
 import { Injectable, ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerGuard as BaseThrottlerGuard } from '@nestjs/throttler';
 
 @Injectable()
-export class CustomThrottlerGuard extends ThrottlerGuard {
-  constructor(protected readonly reflector: Reflector) {
-    super({}, reflector);
-  }
-
+export class CustomThrottlerGuard extends BaseThrottlerGuard {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Check if rate limiting should be skipped
     const skipRateLimit = this.reflector.getAllAndOverride<boolean>(

@@ -2,7 +2,7 @@ import { Module, OnModuleInit } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -110,10 +110,7 @@ import { APP_CONSTANTS } from './common/constants/app.constants';
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    // ThrottlerGuard is now provided by SecurityModule
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
