@@ -4,7 +4,7 @@ import { ModuleRef } from '@nestjs/core';
 import { Notification } from '../../notifications/entities/notification.entity';
 import { NotificationChannel } from '../../notifications/enums/notification-channel.enum';
 import { EmailService } from '../email/services/email.service';
-import { MetricsService } from '../../common/services/metrics.service';
+import { RedisMetricsService } from '../../common/services/redis-metrics.service';
 import {
   ChannelResult,
   INotificationChannel,
@@ -18,7 +18,7 @@ export class ChannelRouter implements OnModuleInit {
   constructor(
     private moduleRef: ModuleRef,
     private configService: ConfigService,
-    private metricsService: MetricsService,
+    private metricsService: RedisMetricsService,
   ) {}
 
   onModuleInit() {
@@ -103,7 +103,7 @@ export class ChannelRouter implements OnModuleInit {
 
       // Record metrics
       const duration = Date.now() - startTime;
-      this.metricsService.recordChannelDelivery(
+      void this.metricsService.recordChannelDelivery(
         notification.channel,
         result.success,
         duration,
@@ -131,7 +131,7 @@ export class ChannelRouter implements OnModuleInit {
         errorStack,
       );
 
-      this.metricsService.recordChannelDelivery(
+      void this.metricsService.recordChannelDelivery(
         notification.channel,
         false,
         duration,

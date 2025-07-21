@@ -63,39 +63,6 @@ export class CreateNotificationDto {
   @IsDateString()
   scheduledFor?: string;
 
-  // Custom validation based on channel
-  validate(): string[] {
-    const errors: string[] = [];
-
-    // Email validation
-    if (this.channel === NotificationChannel.EMAIL) {
-      if (!this.subject) {
-        errors.push('Subject is required for email notifications');
-      }
-      if (!this.recipient.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-        errors.push('Recipient must be a valid email address');
-      }
-    }
-
-    // SMS validation
-    if (this.channel === NotificationChannel.SMS) {
-      if (!this.recipient.match(/^\+?[1-9]\d{1,14}$/)) {
-        errors.push('Recipient must be a valid phone number');
-      }
-      if (this.content.length > 160) {
-        errors.push('SMS content must be 160 characters or less');
-      }
-    }
-
-    // Webhook validation
-    if (this.channel === NotificationChannel.WEBHOOK) {
-      try {
-        new URL(this.recipient);
-      } catch {
-        errors.push('Recipient must be a valid URL for webhook notifications');
-      }
-    }
-
-    return errors;
-  }
+  // Note: Business validation logic has been moved to NotificationValidatorService
+  // This DTO now only contains basic format validation via class-validator decorators
 }

@@ -8,6 +8,10 @@ import {
 } from 'typeorm';
 import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationChannel } from '../enums/notification-channel.enum';
+import { Recipient } from '../value-objects/recipient.value-object';
+import { NotificationContent } from '../value-objects/notification-content.value-object';
+import { RecipientTransformer, SimpleRecipientTransformer } from '../transformers/recipient.transformer';
+import { NotificationContentTransformer, SimpleContentTransformer } from '../transformers/notification-content.transformer';
 
 @Entity('notifications')
 @Index(['status', 'createdAt']) // For filtering by status
@@ -23,6 +27,7 @@ export class Notification {
   })
   channel: NotificationChannel;
 
+  // Legacy columns for backward compatibility (will be deprecated)
   @Column({ type: 'varchar', length: 255 })
   recipient: string; // Email, phone number, device token, or webhook URL
 
@@ -31,6 +36,21 @@ export class Notification {
 
   @Column({ type: 'text' })
   content: string; // The main notification content
+
+  // New value object columns (preferred approach)
+  @Column({ 
+    type: 'jsonb', 
+    nullable: true, 
+    transformer: new RecipientTransformer() 
+  })
+  recipientVO: Recipient | null; // Rich recipient value object
+
+  @Column({ 
+    type: 'jsonb', 
+    nullable: true, 
+    transformer: new NotificationContentTransformer() 
+  })
+  contentVO: NotificationContent | null; // Rich content value object
 
   @Column({
     type: 'enum',

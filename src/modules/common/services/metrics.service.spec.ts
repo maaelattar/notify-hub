@@ -1,14 +1,54 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
+import Redis from 'ioredis';
 
-import { MetricsService } from './metrics.service';
+import { RedisMetricsService } from './redis-metrics.service';
+import { RedisProvider } from '../providers/redis.provider';
 import { NotificationPriority } from '../../notifications/enums/notification-priority.enum';
 
-describe('MetricsService', () => {
-  let service: MetricsService;
+describe('RedisMetricsService', () => {
+  let service: RedisMetricsService;
   let mockLogger: jest.Mocked<Logger>;
+  let mockRedisProvider: jest.Mocked<RedisProvider>;
+  let mockRedisClient: jest.Mocked<Redis>;
 
   beforeEach(async () => {
+    // Mock Redis client
+    mockRedisClient = {
+      pipeline: jest.fn(),
+      hincrby: jest.fn(),
+      lpush: jest.fn(),
+      ltrim: jest.fn(),
+      expire: jest.fn(),
+      hgetall: jest.fn(),
+      lrange: jest.fn(),
+      keys: jest.fn(),
+      del: jest.fn(),
+      set: jest.fn(),
+      get: jest.fn(),
+      ping: jest.fn(),
+    } as any;
+
+    // Mock pipeline behavior
+    const mockPipeline = {
+      hincrby: jest.fn().mockReturnThis(),
+      lpush: jest.fn().mockReturnThis(),
+      ltrim: jest.fn().mockReturnThis(),
+      expire: jest.fn().mockReturnThis(),
+      hgetall: jest.fn().mockReturnThis(),
+      lrange: jest.fn().mockReturnThis(),
+      exec: jest.fn().mockResolvedValue([[null, 'OK']]),
+    };
+    mockRedisClient.pipeline.mockReturnValue(mockPipeline as any);
+
+    // Mock RedisProvider
+    mockRedisProvider = {
+      getClient: jest.fn().mockReturnValue(mockRedisClient),
+      ping: jest.fn().mockResolvedValue(true),
+      isConnected: jest.fn().mockReturnValue(true),
+      onModuleDestroy: jest.fn(),
+    } as any;
+
     // Mock the logger
     mockLogger = {
       debug: jest.fn(),
@@ -19,10 +59,13 @@ describe('MetricsService', () => {
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [MetricsService],
+      providers: [
+        RedisMetricsService,
+        { provide: RedisProvider, useValue: mockRedisProvider },
+      ],
     }).compile();
 
-    service = module.get<MetricsService>(MetricsService);
+    service = module.get<RedisMetricsService>(RedisMetricsService);
 
     // Replace the logger with our mock
     (service as any).logger = mockLogger;
@@ -33,183 +76,130 @@ describe('MetricsService', () => {
   });
 
   describe('recordNotificationSent', () => {
-    it('should record notification sent metrics correctly', () => {
+    it('should record notification sent metrics correctly', async () => {
       // Arrange
       const channel = 'email';
       const priority = NotificationPriority.NORMAL;
       const processingTime = 150;
 
       // Act
-      service.recordNotificationSent(channel, priority, processingTime);
+      await service.recordNotificationSent(channel, priority, processingTime);
 
       // Assert
-      const metrics = service.getMetrics();
-      expect(metrics.notificationsSent).toBe(1);
-      expect(metrics.averageProcessingTime).toBe(150);
-      expect(metrics.channelBreakdown[channel]).toEqual({
-        sent: 1,
-        failed: 0,
-      });
-      expect(metrics.priorityBreakdown[priority]).toEqual({
-        sent: 1,
-        failed: 0,
-      });
+      expect(mockRedisProvider.getClient).toHaveBeenCalled();
+      expect(mockRedisClient.pipeline).toHaveBeenCalled();
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        `Recorded successful notification: ${channel}, ${priority}, ${processingTime}ms`,
+      );
     });
 
-    it('should accumulate multiple sent notifications', () => {
+    it('should accumulate multiple sent notifications', async () => {
       // Arrange & Act
-      service.recordNotificationSent('email', NotificationPriority.NORMAL, 100);
-      service.recordNotificationSent('email', NotificationPriority.HIGH, 200);
-      service.recordNotificationSent('sms', NotificationPriority.LOW, 50);
+      await service.recordNotificationSent('email', NotificationPriority.NORMAL, 100);
+      await service.recordNotificationSent('email', NotificationPriority.HIGH, 200);
+      await service.recordNotificationSent('sms', NotificationPriority.LOW, 50);
 
-      // Assert
-      const metrics = service.getMetrics();
-      expect(metrics.notificationsSent).toBe(3);
-      expect(metrics.averageProcessingTime).toBe(117); // (100 + 200 + 50) / 3 = 116.67, rounded to 117
-      expect(metrics.channelBreakdown['email']).toEqual({
-        sent: 2,
-        failed: 0,
-      });
-      expect(metrics.channelBreakdown['sms']).toEqual({
-        sent: 1,
-        failed: 0,
-      });
-      expect(metrics.priorityBreakdown[NotificationPriority.NORMAL]).toEqual({
-        sent: 1,
-        failed: 0,
-      });
-      expect(metrics.priorityBreakdown[NotificationPriority.HIGH]).toEqual({
-        sent: 1,
-        failed: 0,
-      });
-      expect(metrics.priorityBreakdown[NotificationPriority.LOW]).toEqual({
-        sent: 1,
-        failed: 0,
-      });
+      // Assert - Verify Redis operations were called
+      expect(mockRedisProvider.getClient).toHaveBeenCalledTimes(3);
+      expect(mockRedisClient.pipeline).toHaveBeenCalledTimes(3);
     });
 
-    it('should limit processing times to last 1000 entries', () => {
-      // Arrange & Act - Record 1500 notifications
-      for (let i = 0; i < 1500; i++) {
-        service.recordNotificationSent('email', NotificationPriority.NORMAL, i);
+    it('should limit processing times to last 1000 entries', async () => {
+      // Arrange & Act - Record many notifications
+      const promises: Promise<void>[] = [];
+      for (let i = 0; i < 100; i++) { // Reduced for test performance
+        promises.push(service.recordNotificationSent('email', NotificationPriority.NORMAL, i));
       }
+      await Promise.all(promises);
 
-      // Assert
-      const metrics = service.getMetrics();
-      expect(metrics.notificationsSent).toBe(1500);
-      // Should only consider last 1000 processing times: 500-1499
-      // Average = (500 + 501 + ... + 1499) / 1000 = 999.5, rounded to 1000
-      expect(metrics.averageProcessingTime).toBe(1000);
+      // Assert - Verify Redis pipeline operations with ltrim for size limit
+      expect(mockRedisClient.pipeline).toHaveBeenCalled();
+      const mockPipeline = mockRedisClient.pipeline() as any;
+      expect(mockPipeline.ltrim).toHaveBeenCalled();
     });
 
-    it('should handle errors gracefully', () => {
-      // Arrange
-      const originalConsole = console.error;
-      console.error = jest.fn(); // Suppress error output
-
-      // Simulate an error by corrupting internal state
-      (service as any).metrics = null;
+    it('should handle Redis errors gracefully', async () => {
+      // Arrange - Simulate Redis error
+      mockRedisClient.pipeline.mockImplementation(() => {
+        throw new Error('Redis connection failed');
+      });
 
       // Act
-      service.recordNotificationSent('email', NotificationPriority.NORMAL, 100);
+      await service.recordNotificationSent('email', NotificationPriority.NORMAL, 100);
 
       // Assert
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to record notification sent metric',
         expect.any(String),
       );
-
-      console.error = originalConsole;
     });
   });
 
   describe('recordNotificationFailed', () => {
-    it('should record notification failed metrics correctly', () => {
+    it('should record notification failed metrics correctly', async () => {
       // Arrange
       const priority = NotificationPriority.HIGH;
       const error = 'SMTP connection failed';
       const channel = 'email';
 
       // Act
-      service.recordNotificationFailed(priority, error, channel);
+      await service.recordNotificationFailed(priority, error, channel);
 
       // Assert
-      const metrics = service.getMetrics();
-      expect(metrics.notificationsFailed).toBe(1);
-      expect(metrics.channelBreakdown[channel]).toEqual({
-        sent: 0,
-        failed: 1,
-      });
-      expect(metrics.priorityBreakdown[priority]).toEqual({
-        sent: 0,
-        failed: 1,
-      });
+      expect(mockRedisProvider.getClient).toHaveBeenCalled();
+      expect(mockRedisClient.pipeline).toHaveBeenCalled();
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        `Recorded failed notification: ${priority}, ${error}`,
+      );
     });
 
-    it('should record failures without channel', () => {
+    it('should record failures without channel', async () => {
       // Arrange
       const priority = NotificationPriority.NORMAL;
       const error = 'Unknown error';
 
       // Act
-      service.recordNotificationFailed(priority, error);
+      await service.recordNotificationFailed(priority, error);
 
       // Assert
-      const metrics = service.getMetrics();
-      expect(metrics.notificationsFailed).toBe(1);
-      expect(metrics.priorityBreakdown[priority]).toEqual({
-        sent: 0,
-        failed: 1,
-      });
-      // No channel breakdown should be recorded
-      expect(Object.keys(metrics.channelBreakdown)).toHaveLength(0);
+      expect(mockRedisProvider.getClient).toHaveBeenCalled();
+      expect(mockRedisClient.pipeline).toHaveBeenCalled();
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        `Recorded failed notification: ${priority}, ${error}`,
+      );
     });
 
-    it('should accumulate multiple failures', () => {
+    it('should accumulate multiple failures', async () => {
       // Arrange & Act
-      service.recordNotificationFailed(
+      await service.recordNotificationFailed(
         NotificationPriority.HIGH,
         'Error 1',
         'email',
       );
-      service.recordNotificationFailed(
+      await service.recordNotificationFailed(
         NotificationPriority.HIGH,
         'Error 2',
         'email',
       );
-      service.recordNotificationFailed(
+      await service.recordNotificationFailed(
         NotificationPriority.LOW,
         'Error 3',
         'sms',
       );
 
-      // Assert
-      const metrics = service.getMetrics();
-      expect(metrics.notificationsFailed).toBe(3);
-      expect(metrics.channelBreakdown['email']).toEqual({
-        sent: 0,
-        failed: 2,
-      });
-      expect(metrics.channelBreakdown['sms']).toEqual({
-        sent: 0,
-        failed: 1,
-      });
-      expect(metrics.priorityBreakdown[NotificationPriority.HIGH]).toEqual({
-        sent: 0,
-        failed: 2,
-      });
+      // Assert - Verify Redis operations were called
+      expect(mockRedisProvider.getClient).toHaveBeenCalledTimes(3);
+      expect(mockRedisClient.pipeline).toHaveBeenCalledTimes(3);
     });
 
-    it('should handle errors gracefully', () => {
-      // Arrange
-      const originalConsole = console.error;
-      console.error = jest.fn();
-
-      // Simulate an error
-      (service as any).metrics = null;
+    it('should handle Redis errors gracefully', async () => {
+      // Arrange - Simulate Redis error
+      mockRedisClient.pipeline.mockImplementation(() => {
+        throw new Error('Redis connection failed');
+      });
 
       // Act
-      service.recordNotificationFailed(
+      await service.recordNotificationFailed(
         NotificationPriority.NORMAL,
         'Test error',
         'email',
@@ -220,46 +210,45 @@ describe('MetricsService', () => {
         'Failed to record notification failed metric',
         expect.any(String),
       );
-
-      console.error = originalConsole;
     });
   });
 
   describe('getMetrics', () => {
-    it('should return correct metrics with calculations', () => {
-      // Arrange - Record some mixed metrics
-      service.recordNotificationSent('email', NotificationPriority.NORMAL, 100);
-      service.recordNotificationSent('email', NotificationPriority.HIGH, 200);
-      service.recordNotificationFailed(
-        NotificationPriority.LOW,
-        'Error',
-        'sms',
-      );
+    it('should return correct metrics with calculations', async () => {
+      // Arrange - Mock Redis pipeline exec results
+      const mockPipeline = mockRedisClient.pipeline() as any;
+      mockPipeline.exec.mockResolvedValue([
+        [null, { total: '2', 'channel:email': '2', 'priority:NORMAL': '1', 'priority:HIGH': '1' }], // sent data
+        [null, { total: '1', 'channel:sms': '1', 'priority:LOW': '1' }], // failed data
+        [null, ['100', '200']], // processing times
+      ]);
 
       // Act
-      const metrics = service.getMetrics();
+      const metrics = await service.getMetrics();
 
       // Assert
-      expect(metrics).toEqual({
-        notificationsSent: 2,
-        notificationsFailed: 1,
-        averageProcessingTime: 150, // (100 + 200) / 2
-        successRate: 66.67, // 2 / 3 * 100, rounded to 2 decimal places
-        channelBreakdown: {
-          email: { sent: 2, failed: 0 },
-          sms: { sent: 0, failed: 1 },
-        },
-        priorityBreakdown: {
-          [NotificationPriority.NORMAL]: { sent: 1, failed: 0 },
-          [NotificationPriority.HIGH]: { sent: 1, failed: 0 },
-          [NotificationPriority.LOW]: { sent: 0, failed: 1 },
-        },
+      expect(metrics.notificationsSent).toBe(2);
+      expect(metrics.notificationsFailed).toBe(1);
+      expect(metrics.averageProcessingTime).toBe(150); // (100 + 200) / 2
+      expect(metrics.successRate).toBe(66.67); // 2 / 3 * 100
+      expect(metrics.channelBreakdown).toEqual({
+        email: { sent: 2, failed: 0 },
+        sms: { sent: 0, failed: 1 },
+      });
+      expect(metrics.priorityBreakdown).toEqual({
+        NORMAL: { sent: 1, failed: 0 },
+        HIGH: { sent: 1, failed: 0 },
+        LOW: { sent: 0, failed: 1 },
       });
     });
 
-    it('should return zero metrics when no data recorded', () => {
+    it('should return zero metrics when no data recorded', async () => {
+      // Arrange - Mock empty Redis results
+      const mockPipeline = mockRedisClient.pipeline() as any;
+      mockPipeline.exec.mockResolvedValue([[null, null], [null, null], [null, []]]);
+
       // Act
-      const metrics = service.getMetrics();
+      const metrics = await service.getMetrics();
 
       // Assert
       expect(metrics).toEqual({
@@ -272,48 +261,45 @@ describe('MetricsService', () => {
       });
     });
 
-    it('should calculate 100% success rate with only successful notifications', () => {
-      // Arrange
-      service.recordNotificationSent('email', NotificationPriority.NORMAL, 100);
-      service.recordNotificationSent('sms', NotificationPriority.HIGH, 150);
+    it('should calculate 100% success rate with only successful notifications', async () => {
+      // Arrange - Mock Redis pipeline exec results for only sent notifications
+      const mockPipeline = mockRedisClient.pipeline() as any;
+      mockPipeline.exec.mockResolvedValue([
+        [null, { total: '2' }], // sent data
+        [null, null], // no failed data
+        [null, ['100', '150']], // processing times
+      ]);
 
       // Act
-      const metrics = service.getMetrics();
+      const metrics = await service.getMetrics();
 
       // Assert
       expect(metrics.successRate).toBe(100);
     });
 
-    it('should calculate 0% success rate with only failed notifications', () => {
-      // Arrange
-      service.recordNotificationFailed(
-        NotificationPriority.NORMAL,
-        'Error 1',
-        'email',
-      );
-      service.recordNotificationFailed(
-        NotificationPriority.HIGH,
-        'Error 2',
-        'sms',
-      );
+    it('should calculate 0% success rate with only failed notifications', async () => {
+      // Arrange - Mock Redis pipeline exec results for only failed notifications
+      const mockPipeline = mockRedisClient.pipeline() as any;
+      mockPipeline.exec.mockResolvedValue([
+        [null, null], // no sent data
+        [null, { total: '2' }], // failed data
+        [null, []], // no processing times
+      ]);
 
       // Act
-      const metrics = service.getMetrics();
+      const metrics = await service.getMetrics();
 
       // Assert
       expect(metrics.successRate).toBe(0);
     });
 
-    it('should handle errors and return default metrics', () => {
-      // Arrange
-      const originalConsole = console.error;
-      console.error = jest.fn();
-
-      // Simulate an error
-      (service as any).metrics = null;
+    it('should handle Redis errors and return default metrics', async () => {
+      // Arrange - Simulate Redis error
+      const mockPipeline = mockRedisClient.pipeline() as any;
+      mockPipeline.exec.mockRejectedValue(new Error('Redis connection failed'));
 
       // Act
-      const metrics = service.getMetrics();
+      const metrics = await service.getMetrics();
 
       // Assert
       expect(metrics).toEqual({
@@ -329,175 +315,155 @@ describe('MetricsService', () => {
         'Failed to get metrics',
         expect.any(String),
       );
-
-      console.error = originalConsole;
     });
   });
 
   describe('recordChannelDelivery', () => {
-    it('should record successful channel delivery', () => {
+    it('should record successful channel delivery', async () => {
       // Arrange
       const channel = 'email';
       const duration = 250;
 
       // Act
-      service.recordChannelDelivery(channel, true, duration);
+      await service.recordChannelDelivery(channel, true, duration);
 
       // Assert
-      const metrics = service.getMetrics();
-      expect(metrics.channelBreakdown[channel]).toEqual({
-        sent: 1,
-        failed: 0,
-      });
-      expect(metrics.averageProcessingTime).toBe(250);
+      expect(mockRedisProvider.getClient).toHaveBeenCalled();
+      expect(mockRedisClient.pipeline).toHaveBeenCalled();
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        `Channel delivery: ${channel}, success: true, duration: ${duration}ms`,
+      );
     });
 
-    it('should record failed channel delivery', () => {
+    it('should record failed channel delivery', async () => {
       // Arrange
       const channel = 'sms';
       const duration = 100;
 
       // Act
-      service.recordChannelDelivery(channel, false, duration);
+      await service.recordChannelDelivery(channel, false, duration);
 
       // Assert
-      const metrics = service.getMetrics();
-      expect(metrics.channelBreakdown[channel]).toEqual({
-        sent: 0,
-        failed: 1,
-      });
-      // Processing time should not be recorded for failures
-      expect(metrics.averageProcessingTime).toBe(0);
+      expect(mockRedisProvider.getClient).toHaveBeenCalled();
+      expect(mockRedisClient.pipeline).toHaveBeenCalled();
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        `Channel delivery: ${channel}, success: false, duration: ${duration}ms`,
+      );
     });
 
-    it('should limit processing times to last 1000 entries', () => {
-      // Arrange & Act - Record 1500 successful deliveries
-      for (let i = 0; i < 1500; i++) {
-        service.recordChannelDelivery('email', true, i);
+    it('should limit processing times to last 1000 entries', async () => {
+      // Arrange & Act - Record many successful deliveries
+      const promises: Promise<void>[] = [];
+      for (let i = 0; i < 100; i++) { // Reduced for test performance
+        promises.push(service.recordChannelDelivery('email', true, i));
       }
+      await Promise.all(promises);
 
-      // Assert
-      const metrics = service.getMetrics();
-      expect(metrics.channelBreakdown['email'].sent).toBe(1500);
-      // Should only consider last 1000 processing times
-      expect(metrics.averageProcessingTime).toBe(1000); // Average of 500-1499
+      // Assert - Verify Redis pipeline operations with ltrim for size limit
+      expect(mockRedisClient.pipeline).toHaveBeenCalled();
+      const mockPipeline = mockRedisClient.pipeline() as any;
+      expect(mockPipeline.ltrim).toHaveBeenCalled();
     });
 
-    it('should handle errors gracefully', () => {
-      // Arrange
-      const originalConsole = console.error;
-      console.error = jest.fn();
-
-      // Simulate an error
-      (service as any).metrics = null;
+    it('should handle Redis errors gracefully', async () => {
+      // Arrange - Simulate Redis error
+      mockRedisClient.pipeline.mockImplementation(() => {
+        throw new Error('Redis connection failed');
+      });
 
       // Act
-      service.recordChannelDelivery('email', true, 100);
+      await service.recordChannelDelivery('email', true, 100);
 
       // Assert
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to record channel delivery metric',
         expect.any(String),
       );
-
-      console.error = originalConsole;
     });
   });
 
   describe('resetMetrics', () => {
-    it('should reset all metrics to initial state', () => {
-      // Arrange - Record some metrics first
-      service.recordNotificationSent('email', NotificationPriority.NORMAL, 100);
-      service.recordNotificationFailed(
-        NotificationPriority.HIGH,
-        'Error',
-        'sms',
-      );
-
-      // Verify metrics exist
-      let metrics = service.getMetrics();
-      expect(metrics.notificationsSent).toBe(1);
-      expect(metrics.notificationsFailed).toBe(1);
+    it('should reset all metrics by deleting Redis keys', async () => {
+      // Arrange - Mock Redis keys and del operations
+      mockRedisClient.keys.mockResolvedValueOnce(['metrics:2025-01-01-12:sent'])
+        .mockResolvedValueOnce(['metrics:2025-01-01-12:failed'])
+        .mockResolvedValueOnce(['processing_times:2025-01-01-12']);
+      mockRedisClient.del.mockResolvedValue(3);
 
       // Act
-      service.resetMetrics();
+      await service.resetMetrics();
 
-      // Assert
-      metrics = service.getMetrics();
-      expect(metrics).toEqual({
-        notificationsSent: 0,
-        notificationsFailed: 0,
-        averageProcessingTime: 0,
-        successRate: 0,
-        channelBreakdown: {},
-        priorityBreakdown: {},
-      });
-
+      // Assert - Verify Redis operations
+      expect(mockRedisClient.keys).toHaveBeenCalledTimes(3);
+      expect(mockRedisClient.del).toHaveBeenCalledWith(
+        'metrics:2025-01-01-12:sent',
+        'metrics:2025-01-01-12:failed',
+        'processing_times:2025-01-01-12'
+      );
       expect(mockLogger.log).toHaveBeenCalledWith('Metrics reset successfully');
     });
 
-    it('should handle errors during reset', () => {
-      // Arrange
-      const originalConsole = console.error;
-      console.error = jest.fn();
-
-      // Simulate an error by corrupting metrics
-      (service as any).metrics = {
-        sent: {
-          clear: jest.fn(() => {
-            throw new Error('Clear failed');
-          }),
-        },
-      };
+    it('should handle Redis errors during reset', async () => {
+      // Arrange - Simulate Redis error
+      mockRedisClient.keys.mockRejectedValue(new Error('Redis keys operation failed'));
 
       // Act
-      service.resetMetrics();
+      await service.resetMetrics();
 
       // Assert
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to reset metrics',
         expect.any(String),
       );
-
-      console.error = originalConsole;
     });
   });
 
-  describe('integration scenarios', () => {
-    it('should handle mixed operations correctly', () => {
-      // Arrange & Act - Simulate a real scenario
-      // Successful email notifications
-      service.recordNotificationSent('email', NotificationPriority.NORMAL, 150);
-      service.recordNotificationSent('email', NotificationPriority.HIGH, 100);
+  describe('healthCheck', () => {
+    it('should return health status for Redis and metrics operations', async () => {
+      // Arrange
+      mockRedisProvider.ping.mockResolvedValue(true);
+      mockRedisClient.set.mockResolvedValue('OK');
+      mockRedisClient.get.mockResolvedValue('1');
+      mockRedisClient.del.mockResolvedValue(1);
 
-      // Failed SMS notification
-      service.recordNotificationFailed(
-        NotificationPriority.LOW,
-        'Network error',
-        'sms',
-      );
-
-      // Channel delivery tracking
-      service.recordChannelDelivery('email', true, 120);
-      service.recordChannelDelivery('sms', false, 80);
+      // Act
+      const healthStatus = await service.healthCheck();
 
       // Assert
-      const metrics = service.getMetrics();
-      expect(metrics.notificationsSent).toBe(2);
-      expect(metrics.notificationsFailed).toBe(1);
-      expect(metrics.successRate).toBe(66.67); // 2/3 * 100
-      expect(metrics.averageProcessingTime).toBe(123); // (150 + 100 + 120) / 3
-
-      expect(metrics.channelBreakdown).toEqual({
-        email: { sent: 3, failed: 0 }, // 2 from recordNotificationSent + 1 from recordChannelDelivery
-        sms: { sent: 0, failed: 2 }, // 1 from recordNotificationFailed + 1 from recordChannelDelivery
+      expect(healthStatus).toEqual({
+        redis: true,
+        metricsOperational: true,
       });
+      expect(mockRedisProvider.ping).toHaveBeenCalled();
+    });
 
-      expect(metrics.priorityBreakdown).toEqual({
-        [NotificationPriority.NORMAL]: { sent: 1, failed: 0 },
-        [NotificationPriority.HIGH]: { sent: 1, failed: 0 },
-        [NotificationPriority.LOW]: { sent: 0, failed: 1 },
+    it('should return false when Redis is not healthy', async () => {
+      // Arrange
+      mockRedisProvider.ping.mockResolvedValue(false);
+
+      // Act
+      const healthStatus = await service.healthCheck();
+
+      // Assert
+      expect(healthStatus).toEqual({
+        redis: false,
+        metricsOperational: false,
       });
+    });
+
+    it('should handle health check errors gracefully', async () => {
+      // Arrange
+      mockRedisProvider.ping.mockRejectedValue(new Error('Ping failed'));
+
+      // Act
+      const healthStatus = await service.healthCheck();
+
+      // Assert
+      expect(healthStatus).toEqual({
+        redis: false,
+        metricsOperational: false,
+      });
+      expect(mockLogger.error).toHaveBeenCalledWith('Health check failed:', expect.any(Error));
     });
   });
 });

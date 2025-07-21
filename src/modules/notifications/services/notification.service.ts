@@ -17,6 +17,9 @@ import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationPriority } from '../enums/notification-priority.enum';
 import { NotificationConfig } from '../config/notification.config';
 import { NotificationProducer } from './notification.producer';
+import { NotificationValidatorService } from './notification-validator.service';
+import { Recipient } from '../value-objects/recipient.value-object';
+import { NotificationContent } from '../value-objects/notification-content.value-object';
 
 @Injectable()
 export class NotificationService {
@@ -28,6 +31,7 @@ export class NotificationService {
     private readonly notificationProducer: NotificationProducer,
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
+    private readonly validatorService: NotificationValidatorService,
   ) {
     this.config = this.configService.get<NotificationConfig>('notification')!;
   }
@@ -37,17 +41,30 @@ export class NotificationService {
       `Creating notification for ${dto.recipient} via ${dto.channel}`,
     );
 
-    // Custom validation
-    const validationErrors = dto.validate();
-    if (validationErrors.length > 0) {
+    // Comprehensive business validation
+    const validationResult = await this.validatorService.validateWithCategories(dto);
+    if (!validationResult.isValid) {
       this.logger.warn(`Validation failed for notification creation`, {
         recipient: dto.recipient,
         channel: dto.channel,
-        errors: validationErrors,
+        criticalErrors: validationResult.criticalErrors.length,
+        warningErrors: validationResult.warningErrors.length,
+        errors: validationResult.allErrors,
       });
+      
       throw new BadRequestException({
         message: 'Notification validation failed',
-        errors: validationErrors,
+        errors: validationResult.allErrors.map(error => ({
+          field: error.field,
+          code: error.code,
+          message: error.message,
+          context: error.context,
+        })),
+        summary: {
+          criticalErrors: validationResult.criticalErrors.length,
+          warningErrors: validationResult.warningErrors.length,
+          totalErrors: validationResult.allErrors.length,
+        },
         context: {
           channel: dto.channel,
           recipient: dto.recipient,
@@ -56,13 +73,39 @@ export class NotificationService {
     }
 
     return await this.dataSource.transaction(async (manager) => {
+      // Create value objects with enhanced validation and business logic
+      let recipientVO: Recipient | null = null;
+      let contentVO: NotificationContent | null = null;
+
+      try {
+        // Create recipient value object with channel context
+        recipientVO = Recipient.create(dto.recipient, dto.channel);
+        
+        // Create content value object with channel-specific format detection
+        contentVO = NotificationContent.create(dto.content, dto.channel);
+      } catch (error) {
+        this.logger.warn('Failed to create value objects, falling back to legacy format', {
+          recipient: dto.recipient,
+          channel: dto.channel,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        // Continue with legacy fields only
+      }
+
       // Create notification entity within transaction
       const notificationRepo = manager.getRepository(Notification);
       const notification = await notificationRepo.save({
         channel: dto.channel,
+        
+        // Legacy fields (backward compatibility)
         recipient: dto.recipient,
         subject: dto.subject,
         content: dto.content,
+        
+        // New value object fields (preferred)
+        recipientVO,
+        contentVO,
+        
         metadata: dto.metadata || {},
         scheduledFor: dto.scheduledFor ? new Date(dto.scheduledFor) : null,
         status: NotificationStatus.CREATED,
@@ -168,7 +211,22 @@ export class NotificationService {
     // Build update object, excluding undefined values
     const updateData: Partial<Notification> = {};
     if (dto.subject !== undefined) updateData.subject = dto.subject;
-    if (dto.content !== undefined) updateData.content = dto.content;
+    if (dto.content !== undefined) {
+      updateData.content = dto.content;
+      
+      // Update content value object if content is being updated
+      try {
+        updateData.contentVO = NotificationContent.create(dto.content, notification.channel);
+      } catch (error) {
+        this.logger.warn('Failed to create content value object during update', {
+          notificationId: id,
+          channel: notification.channel,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        // Keep legacy content field, set contentVO to null
+        updateData.contentVO = null;
+      }
+    }
     if (dto.metadata !== undefined) updateData.metadata = dto.metadata;
     if (dto.scheduledFor !== undefined) {
       updateData.scheduledFor = dto.scheduledFor

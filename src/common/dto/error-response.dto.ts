@@ -50,4 +50,15 @@ export class ErrorResponseDto {
     required: false,
   })
   context?: Record<string, any>;
+
+  @ApiProperty({
+    example: {
+      message: 'Please check the request format and ensure all required fields are provided correctly.',
+      documentation: 'http://localhost:3000/api#/notifications',
+      actions: ['Verify all required fields are provided', 'Check data types match the schema']
+    },
+    description: 'Actionable guidance for resolving the error',
+    required: false,
+  })
+  guidance?: Record<string, any>;
 }

@@ -1,7 +1,12 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
-import { MetricsService } from '../common/services/metrics.service';
+import { RedisProvider } from '../common/providers/redis.provider';
+import { RedisMetricsService } from '../common/services/redis-metrics.service';
 import { QueueHealthIndicator } from '../common/health/queue-health.indicator';
+import { ErrorGuidanceFactory } from '../../common/services/error-guidance.factory';
+
+// Create alias for backward compatibility
+const MetricsService = RedisMetricsService;
 
 @Module({
   imports: [
@@ -10,7 +15,25 @@ import { QueueHealthIndicator } from '../common/health/queue-health.indicator';
     }),
   ],
   controllers: [],
-  providers: [MetricsService, QueueHealthIndicator],
-  exports: [MetricsService, QueueHealthIndicator],
+  providers: [
+    RedisProvider,
+    RedisMetricsService,
+    {
+      provide: 'MetricsService',
+      useClass: RedisMetricsService,
+    },
+    QueueHealthIndicator,
+    ErrorGuidanceFactory,
+  ],
+  exports: [
+    RedisProvider,
+    RedisMetricsService,
+    {
+      provide: 'MetricsService',
+      useClass: RedisMetricsService,
+    },
+    QueueHealthIndicator,
+    ErrorGuidanceFactory,
+  ],
 })
 export class SharedModule {}

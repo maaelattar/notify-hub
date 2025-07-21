@@ -5,15 +5,20 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Injectable,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { QueryFailedError } from 'typeorm';
 import { ErrorResponseDto } from '../dto/error-response.dto';
 import { RequestWithCorrelationId } from '../middleware/correlation-id.middleware';
+import { ErrorGuidanceFactory } from '../services/error-guidance.factory';
 
 @Catch()
+@Injectable()
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
+
+  constructor(private readonly errorGuidanceFactory: ErrorGuidanceFactory) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -92,10 +97,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       errorResponse.errors = errors;
     }
 
-    // Add actionable guidance
-    const guidance = this.getErrorGuidance(status, code, message);
+    // Add actionable guidance using factory
+    const guidance = this.errorGuidanceFactory.createGuidance(code, status);
     if (guidance) {
-      Object.assign(errorResponse, { guidance });
+      errorResponse.guidance = guidance.toJSON();
     }
 
     // Add context for debugging (only in development)
@@ -191,81 +196,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     return errorNames[status] || 'Error';
   }
 
-  private getErrorGuidance(
-    status: number,
-    code: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    message: string,
-  ): Record<string, unknown> | null {
-    const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
-
-    switch (code) {
-      case 'VALIDATION_ERROR':
-        return {
-          message:
-            'Please check the request format and ensure all required fields are provided correctly.',
-          documentation: `${baseUrl}/api#/notifications`,
-          examples: `${baseUrl}/api#/notifications/NotificationController_create`,
-        };
-
-      case 'RESOURCE_NOT_FOUND':
-        return {
-          message:
-            'The requested notification was not found. Please verify the notification ID.',
-          actions: [
-            'Check if the notification ID is correct',
-            'Use GET /api/v1/notifications to list available notifications',
-            'Ensure you have permission to access this notification',
-          ],
-        };
-
-      case 'TOO_MANY_REQUESTS':
-        return {
-          message: 'Rate limit exceeded. Please slow down your requests.',
-          actions: [
-            'Wait for the rate limit to reset (check X-RateLimit-Reset header)',
-            'Implement exponential backoff in your client',
-            'Contact support if you need higher rate limits',
-          ],
-          retryAfter: '60 seconds',
-        };
-
-      case 'DUPLICATE_RESOURCE':
-        return {
-          message: 'A notification with this identifier already exists.',
-          actions: [
-            'Use a different notification ID',
-            'Check if this is a duplicate request',
-            'Use PUT method to update existing notification',
-          ],
-        };
-
-      case 'INVALID_STATE':
-        return {
-          message:
-            "The notification is in a state that doesn't allow this operation.",
-          actions: [
-            'Check the notification status with GET /api/v1/notifications/{id}',
-            'Only pending notifications can be cancelled or updated',
-            'Use POST /api/v1/notifications/{id}/retry for failed notifications',
-          ],
-        };
-
-      default:
-        if (status === 500) {
-          return {
-            message:
-              'An unexpected error occurred. Our team has been notified.',
-            actions: [
-              'Please try again in a few moments',
-              'If the problem persists, contact support with this correlation ID',
-            ],
-            support: 'support@notifyhub.com',
-          };
-        }
-        return null;
-    }
-  }
 
   private logError(
     exception: unknown,

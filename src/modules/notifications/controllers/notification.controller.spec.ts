@@ -431,7 +431,7 @@ describe('NotificationController (Integration)', () => {
       expect(result).toEqual({
         statusCounts: mockStats.statusCounts,
         channelCounts: {},
-        totalNotifications: 25, // 5 + 15 + 2 = 22 (created + sent + failed)
+        totalNotifications: 22, // 5 + 15 + 2 = 22 (created + sent + failed)
         successRate: expect.any(Number), // (15 / (15 + 2)) * 100
         recentFailureCount: 2,
         recentFailures: mockStats.recentFailures,

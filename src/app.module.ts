@@ -3,13 +3,15 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { DataSource } from 'typeorm';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { SharedModule } from './modules/shared/shared.module';
+import { AuthModule } from './modules/auth/auth.module';
 import {
   appConfig,
   databaseConfig,
@@ -89,6 +91,7 @@ import { notificationConfig } from './modules/notifications/config/notification.
         limit: 5, // 5 expensive operations per 5 minutes
       },
     ]),
+    AuthModule,
     SharedModule,
     NotificationsModule,
     ChannelsModule,
@@ -100,13 +103,16 @@ import { notificationConfig } from './modules/notifications/config/notification.
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
   ],
 })
 export class AppModule implements OnModuleInit {
   constructor(private readonly dataSource: DataSource) {}
 
   async onModuleInit(): Promise<void> {
-    // Run pending migrations on startup
     await this.dataSource.runMigrations();
   }
 }

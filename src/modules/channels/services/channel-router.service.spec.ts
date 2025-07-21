@@ -4,7 +4,7 @@ import { ModuleRef } from '@nestjs/core';
 
 import { ChannelRouter } from './channel-router.service';
 import { EmailService } from '../email/services/email.service';
-import { MetricsService } from '../../common/services/metrics.service';
+import { RedisMetricsService } from '../../common/services/redis-metrics.service';
 import { NotificationChannel } from '../../notifications/enums/notification-channel.enum';
 
 import { TestDataBuilder } from '../../../test/test-utils';
@@ -13,7 +13,7 @@ describe('ChannelRouter', () => {
   let service: ChannelRouter;
   let mockModuleRef: jest.Mocked<ModuleRef>;
   let mockConfigService: jest.Mocked<ConfigService>;
-  let mockMetricsService: jest.Mocked<MetricsService>;
+  let mockMetricsService: jest.Mocked<RedisMetricsService>;
   let mockEmailService: jest.Mocked<EmailService>;
 
   beforeEach(async () => {
@@ -27,7 +27,12 @@ describe('ChannelRouter', () => {
     } as any;
 
     mockMetricsService = {
-      recordChannelDelivery: jest.fn(),
+      recordChannelDelivery: jest.fn().mockResolvedValue(undefined),
+      recordNotificationSent: jest.fn().mockResolvedValue(undefined),
+      recordNotificationFailed: jest.fn().mockResolvedValue(undefined),
+      getMetrics: jest.fn().mockResolvedValue({}),
+      resetMetrics: jest.fn().mockResolvedValue(undefined),
+      healthCheck: jest.fn().mockResolvedValue({ redis: true, metricsOperational: true }),
     } as any;
 
     mockEmailService = {
@@ -47,7 +52,7 @@ describe('ChannelRouter', () => {
           useValue: mockConfigService,
         },
         {
-          provide: MetricsService,
+          provide: RedisMetricsService,
           useValue: mockMetricsService,
         },
       ],
@@ -89,10 +94,8 @@ describe('ChannelRouter', () => {
       // Act
       service.onModuleInit();
 
-      // Assert - Should still try to get the service to check availability
-      expect(mockModuleRef.get).toHaveBeenCalledWith(EmailService, {
-        strict: false,
-      });
+      // Assert - Should not try to get the service when disabled
+      expect(mockModuleRef.get).not.toHaveBeenCalled();
     });
   });
 
@@ -181,7 +184,7 @@ describe('ChannelRouter', () => {
       expect(result).toEqual({
         success: false,
         channel: NotificationChannel.EMAIL,
-        error: 'Channel EMAIL is not available',
+        error: 'Channel email is not available',
       });
     });
 
@@ -201,7 +204,7 @@ describe('ChannelRouter', () => {
       expect(result).toEqual({
         success: false,
         channel: NotificationChannel.EMAIL,
-        error: 'Invalid recipient for EMAIL: invalid-email',
+        error: 'Invalid recipient for email: invalid-email',
       });
     });
 
@@ -268,7 +271,9 @@ describe('ChannelRouter', () => {
         success: false,
         channel: NotificationChannel.EMAIL,
         error: error.message,
-        details: error.stack,
+        details: {
+          stackTrace: error.stack,
+        },
       });
     });
   });

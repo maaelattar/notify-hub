@@ -3,7 +3,6 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
-import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { validationExceptionFactory } from './common/factories/validation-exception.factory';
 import { RateLimitHeaderInterceptor } from './common/interceptors/rate-limit-header.interceptor';
 import {
@@ -75,8 +74,7 @@ async function bootstrap() {
     }),
   );
 
-  // Global exception filter
-  app.useGlobalFilters(new GlobalExceptionFilter());
+  // Global exception filter is now provided via APP_FILTER in app.module.ts
 
   // Global interceptors
   app.useGlobalInterceptors(

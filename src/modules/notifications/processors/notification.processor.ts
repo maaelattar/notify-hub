@@ -15,7 +15,7 @@ import { NotificationConfig } from '../config/notification.config';
 import { NotificationJobData } from '../services/notification.producer';
 import { ChannelRouter } from '../../channels/services/channel-router.service';
 import { ChannelResult } from '../../channels/interfaces/channel.interface';
-import { MetricsService } from '../../common/services/metrics.service';
+import { RedisMetricsService } from '../../common/services/redis-metrics.service';
 
 @Processor('notifications')
 export class NotificationProcessor {
@@ -26,7 +26,7 @@ export class NotificationProcessor {
     private readonly notificationRepository: NotificationRepository,
     private readonly configService: ConfigService,
     private readonly channelRouter: ChannelRouter,
-    private readonly metricsService: MetricsService,
+    private readonly metricsService: RedisMetricsService,
   ) {
     this.config = this.configService.get<NotificationConfig>('notification')!;
   }

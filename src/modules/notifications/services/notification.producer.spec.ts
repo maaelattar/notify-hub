@@ -312,7 +312,7 @@ describe('NotificationProducer', () => {
       await expect(
         service.addBulkNotificationJobs(notifications),
       ).rejects.toThrow(
-        'Failed to queue bulk notifications: Second job failed',
+        'Failed to queue bulk notifications: Failed to queue notification: Second job failed',
       );
     });
   });
