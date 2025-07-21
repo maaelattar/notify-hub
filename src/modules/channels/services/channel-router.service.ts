@@ -4,7 +4,7 @@ import { ModuleRef } from '@nestjs/core';
 import { Notification } from '../../notifications/entities/notification.entity';
 import { NotificationChannel } from '../../notifications/enums/notification-channel.enum';
 import { EmailService } from '../email/services/email.service';
-import { RedisMetricsService } from '../../common/services/redis-metrics.service';
+import { RedisMetricsService } from '../../monitoring/services/redis-metrics.service';
 import {
   ChannelResult,
   INotificationChannel,

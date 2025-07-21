@@ -3,15 +3,18 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD, APP_FILTER } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { ErrorHandlingInterceptor } from './common/interceptors/error-handling.interceptor';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { SharedModule } from './modules/shared/shared.module';
-import { AuthModule } from './modules/auth/auth.module';
+import { SecurityModule } from './modules/security/security.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
+import { EventsModule } from './modules/events/events.module';
 import {
   appConfig,
   databaseConfig,
@@ -97,8 +100,10 @@ import { APP_CONSTANTS } from './common/constants/app.constants';
         limit: APP_CONSTANTS.THROTTLING.EXPENSIVE_LIMIT, // 5 expensive operations per 5 minutes
       },
     ]),
-    AuthModule,
-    SharedModule,
+    SecurityModule, // Consolidates AuthModule + guards + middleware
+    MonitoringModule, // Health, performance, and metrics monitoring
+    EventsModule, // Event-driven architecture
+    SharedModule, // Shared providers and utilities
     NotificationsModule,
     ChannelsModule,
   ],
@@ -112,6 +117,10 @@ import { APP_CONSTANTS } from './common/constants/app.constants';
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ErrorHandlingInterceptor,
     },
   ],
 })

@@ -8,7 +8,7 @@ import { RateLimitHeaderInterceptor } from './common/interceptors/rate-limit-hea
 import {
   CorrelationIdMiddleware,
   RequestWithCorrelationId,
-} from './common/middleware/correlation-id.middleware';
+} from './modules/security/middleware/correlation-id.middleware';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ApiVersionInterceptor } from './common/interceptors/api-version.interceptor';
 import { APP_CONSTANTS } from './common/constants/app.constants';

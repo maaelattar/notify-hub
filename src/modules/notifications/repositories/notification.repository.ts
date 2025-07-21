@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import {
-  Repository,
+  DataSource,
   FindOptionsWhere,
   LessThan,
   MoreThan,
@@ -12,6 +11,11 @@ import { Notification } from '../entities/notification.entity';
 import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationChannel } from '../enums/notification-channel.enum';
 import { NotificationConfig } from '../config/notification.config';
+import {
+  BaseRepository,
+  PaginationOptions,
+  PaginatedResult,
+} from '../../../common/repositories/base.repository';
 import {
   NotificationNotFoundException,
   NotificationUpdateFailedException,
@@ -39,24 +43,16 @@ export interface PaginatedResult<T> {
 }
 
 @Injectable()
-export class NotificationRepository {
+export class NotificationRepository extends BaseRepository<Notification> {
   constructor(
-    @InjectRepository(Notification)
-    private readonly repository: Repository<Notification>,
+    dataSource: DataSource,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    super(dataSource, Notification);
+  }
 
   private get notificationConfig(): NotificationConfig {
     return this.configService.get<NotificationConfig>('notification')!;
-  }
-
-  async create(notification: Partial<Notification>): Promise<Notification> {
-    const entity = this.repository.create(notification);
-    return this.repository.save(entity);
-  }
-
-  async findById(id: string): Promise<Notification | null> {
-    return this.repository.findOne({ where: { id } });
   }
 
   async findAll(
@@ -65,7 +61,7 @@ export class NotificationRepository {
   ): Promise<PaginatedResult<Notification>> {
     const where: FindOptionsWhere<Notification> = {};
 
-    // Build where clause
+    // Build where clause from filters
     if (filters?.status) {
       where.status = filters.status;
     }
@@ -79,29 +75,22 @@ export class NotificationRepository {
       where.scheduledFor = LessThan(filters.scheduledBefore);
     }
 
-    // Default pagination with config
-    const page = pagination?.page || 1;
-    const limit = Math.min(
-      pagination?.limit || this.notificationConfig.defaultPageSize,
-      this.notificationConfig.maxPageSize,
-    );
-    const skip = (page - 1) * limit;
-
-    // Execute query
-    const [data, total] = await this.repository.findAndCount({
-      where,
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limit,
-    });
-
-    return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+    // Apply pagination limits from config
+    const effectivePagination = {
+      page: pagination?.page || 1,
+      limit: Math.min(
+        pagination?.limit || this.notificationConfig.defaultPageSize,
+        this.notificationConfig.maxPageSize,
+      ),
     };
+
+    // Use base repository method with enhanced configuration
+    return super.findAll(
+      where,
+      effectivePagination,
+      { field: 'createdAt', direction: 'DESC' },
+      [], // No relations needed for basic listing
+    );
   }
 
   async update(

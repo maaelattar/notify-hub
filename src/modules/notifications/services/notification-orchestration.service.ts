@@ -5,8 +5,6 @@ import { NotificationProducer } from './notification.producer';
 import { Notification } from '../entities/notification.entity';
 import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationPriority } from '../enums/notification-priority.enum';
-import { CreateNotificationDto } from '../dto/create-notification.dto';
-import { UpdateNotificationDto } from '../dto/update-notification.dto';
 
 /**
  * Orchestration service that handles cross-cutting concerns for notifications

@@ -15,7 +15,7 @@ import { NotificationConfig } from '../config/notification.config';
 import { NotificationJobData } from '../services/notification.producer';
 import { ChannelRouter } from '../../channels/services/channel-router.service';
 import { ChannelResult } from '../../channels/interfaces/channel.interface';
-import { RedisMetricsService } from '../../common/services/redis-metrics.service';
+import { RedisMetricsService } from '../../monitoring/services/redis-metrics.service';
 
 @Processor('notifications')
 export class NotificationProcessor {

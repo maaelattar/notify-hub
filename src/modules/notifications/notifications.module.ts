@@ -10,6 +10,8 @@ import { NotificationProcessor } from './processors/notification.processor';
 import { NotificationController } from './controllers/notification.controller';
 import { NotificationValidatorService } from './services/notification-validator.service';
 import { NotificationOrchestrationService } from './services/notification-orchestration.service';
+import { NotificationBusinessLogicService } from './services/notification-business-logic.service';
+import { NotificationDataAccessService } from './services/notification-data-access.service';
 import { NotificationConfig } from './config/notification.config';
 import { ChannelsModule } from '../channels/channels.module';
 import { SharedModule } from '../shared/shared.module';
@@ -46,11 +48,18 @@ import { SharedModule } from '../shared/shared.module';
   providers: [
     NotificationRepository,
     NotificationService,
+    NotificationBusinessLogicService,
+    NotificationDataAccessService,
     NotificationProducer,
     NotificationProcessor,
     NotificationValidatorService,
     NotificationOrchestrationService,
   ],
-  exports: [NotificationService, NotificationProducer],
+  exports: [
+    NotificationService,
+    NotificationProducer,
+    NotificationBusinessLogicService,
+    NotificationDataAccessService,
+  ],
 })
 export class NotificationsModule {}

@@ -10,7 +10,7 @@ export class CryptoService {
    * Hash an API key for secure storage
    * Uses SHA-256 with a fixed salt for API key hashing
    */
-  async hashApiKey(apiKey: string): Promise<string> {
+  hashApiKey(apiKey: string): string {
     const hash = createHash('sha256');
     hash.update(apiKey);
     return hash.digest('hex');
@@ -53,7 +53,7 @@ export class CryptoService {
       const buffer2 = Buffer.from(hash2, 'hex');
 
       return timingSafeEqual(buffer1, buffer2);
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }

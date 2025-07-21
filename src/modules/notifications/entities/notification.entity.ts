@@ -10,14 +10,8 @@ import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationChannel } from '../enums/notification-channel.enum';
 import { Recipient } from '../value-objects/recipient.value-object';
 import { NotificationContent } from '../value-objects/notification-content.value-object';
-import {
-  RecipientTransformer,
-  SimpleRecipientTransformer,
-} from '../transformers/recipient.transformer';
-import {
-  NotificationContentTransformer,
-  SimpleContentTransformer,
-} from '../transformers/notification-content.transformer';
+import { RecipientTransformer } from '../transformers/recipient.transformer';
+import { NotificationContentTransformer } from '../transformers/notification-content.transformer';
 import { APP_CONSTANTS } from '../../../common/constants/app.constants';
 
 @Entity('notifications')

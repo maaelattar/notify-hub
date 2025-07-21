@@ -1,14 +1,12 @@
-import {
-  IsEnum,
-  IsString,
-  IsOptional,
-  IsDateString,
-  IsObject,
-  MaxLength,
-  IsNotEmpty,
-} from 'class-validator';
+import { IsEnum, IsOptional, IsDateString, IsObject } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NotificationChannel } from '../enums/notification-channel.enum';
+import {
+  NotificationRecipientField,
+  NotificationSubjectField,
+  NotificationContentField,
+} from '../../../common/decorators/validation.decorators';
+import { NotificationMetadata } from '../../../common/types/notification.types';
 
 export class CreateNotificationDto {
   @ApiProperty({
@@ -19,40 +17,30 @@ export class CreateNotificationDto {
   @IsEnum(NotificationChannel)
   channel: NotificationChannel;
 
-  @ApiProperty({
-    description:
-      'The recipient identifier (email, phone, device token, or webhook URL)',
-    example: 'user@example.com',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(255)
+  @NotificationRecipientField()
   recipient: string;
 
-  @ApiPropertyOptional({
-    description: 'Subject line (required for email, optional for others)',
-    example: 'Welcome to NotifyHub!',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
+  @NotificationSubjectField()
   subject?: string;
 
-  @ApiProperty({
-    description: 'The main content of the notification',
-    example: 'Thank you for signing up. Click here to get started...',
-  })
-  @IsString()
-  @IsNotEmpty()
+  @NotificationContentField()
   content: string;
 
   @ApiPropertyOptional({
-    description: 'Additional metadata for the notification',
-    example: { templateId: 'welcome-email', userId: '12345' },
+    description: 'Channel-specific metadata for the notification',
+    example: {
+      templateId: 'welcome-email',
+      userId: '12345',
+      fromName: 'NotifyHub Team',
+      tracking: {
+        utmSource: 'app',
+        utmMedium: 'notification',
+      },
+    },
   })
   @IsOptional()
   @IsObject()
-  metadata?: Record<string, any>;
+  metadata?: NotificationMetadata;
 
   @ApiPropertyOptional({
     description:
@@ -63,6 +51,6 @@ export class CreateNotificationDto {
   @IsDateString()
   scheduledFor?: string;
 
-  // Note: Business validation logic has been moved to NotificationValidatorService
-  // This DTO now only contains basic format validation via class-validator decorators
+  // Note: Advanced business validation logic is handled by NotificationValidatorService
+  // This DTO provides basic format validation and type safety via custom decorators
 }

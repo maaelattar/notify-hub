@@ -1,394 +1,417 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { DataSource } from 'typeorm';
-import { NotificationRepository } from '../repositories/notification.repository';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
 import { UpdateNotificationDto } from '../dto/update-notification.dto';
 import { NotificationResponseDto } from '../dto/notification-response.dto';
 import { NotificationFilterDto } from '../dto/notification-filter.dto';
 import { PaginatedResponseDto } from '../dto/paginated-response.dto';
+import { NotificationStatsDto } from '../dto/notification-stats.dto';
 import { Notification } from '../entities/notification.entity';
-import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationPriority } from '../enums/notification-priority.enum';
-import { NotificationConfig } from '../config/notification.config';
-import { NotificationValidatorService } from './notification-validator.service';
+import { NotificationStatus } from '../enums/notification-status.enum';
+import { NotificationBusinessLogicService } from './notification-business-logic.service';
+import { NotificationDataAccessService } from './notification-data-access.service';
 import { NotificationOrchestrationService } from './notification-orchestration.service';
-import { Recipient } from '../value-objects/recipient.value-object';
-import { NotificationContent } from '../value-objects/notification-content.value-object';
-import { Pagination } from '../../../common/value-objects/pagination.vo';
+import { PaginationOptions } from '../../../common/repositories/base.repository';
 
+/**
+ * Refactored NotificationService - now focused on coordination and orchestration
+ * Delegates business logic, data access, and orchestration to specialized services
+ * This achieves better separation of concerns and smaller, more focused classes
+ */
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
-  private readonly config: NotificationConfig;
 
   constructor(
-    private readonly notificationRepository: NotificationRepository,
-    private readonly configService: ConfigService,
-    private readonly validatorService: NotificationValidatorService,
-    private readonly orchestrationService: NotificationOrchestrationService,
-  ) {
-    this.config = this.configService.get<NotificationConfig>('notification')!;
-  }
+    private readonly businessLogic: NotificationBusinessLogicService,
+    private readonly dataAccess: NotificationDataAccessService,
+    private readonly orchestration: NotificationOrchestrationService,
+  ) {}
 
+  /**
+   * Create a new notification
+   * Coordinates validation, data preparation, and orchestration
+   */
   async create(dto: CreateNotificationDto): Promise<NotificationResponseDto> {
     this.logger.log(
       `Creating notification for ${dto.recipient} via ${dto.channel}`,
     );
 
-    // Business Logic: Comprehensive validation
-    const validationResult =
-      await this.validatorService.validateWithCategories(dto);
-    if (!validationResult.isValid) {
-      this.logger.warn(`Validation failed for notification creation`, {
-        recipient: dto.recipient,
-        channel: dto.channel,
-        criticalErrors: validationResult.criticalErrors.length,
-        warningErrors: validationResult.warningErrors.length,
-        errors: validationResult.allErrors,
-      });
+    try {
+      // Step 1: Validate using business logic service
+      await this.businessLogic.validateNotificationData(dto);
 
-      throw new BadRequestException({
-        message: 'Notification validation failed',
-        errors: validationResult.allErrors.map((error) => ({
-          field: error.field,
-          code: error.code,
-          message: error.message,
-          context: error.context,
-        })),
-        summary: {
-          criticalErrors: validationResult.criticalErrors.length,
-          warningErrors: validationResult.warningErrors.length,
-          totalErrors: validationResult.allErrors.length,
-        },
-        context: {
-          channel: dto.channel,
-          recipient: dto.recipient,
-        },
-      });
+      // Step 2: Prepare data using business logic service
+      const notificationData = this.businessLogic.prepareNotificationData(dto);
+
+      // Step 3: Create and orchestrate using orchestration service
+      const notification = await this.orchestration.createNotification(
+        notificationData,
+        NotificationPriority.NORMAL,
+      );
+
+      // Step 4: Return response DTO
+      return NotificationResponseDto.fromEntity(notification);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      this.logger.error(
+        `Failed to create notification: ${errorMessage}`,
+        errorStack,
+      );
+      throw error;
     }
+  }
 
-    // Business Logic: Prepare notification data with value objects
-    const notificationData = this.prepareNotificationData(dto);
+  /**
+   * Find notification by ID
+   */
+  async findOne(id: string): Promise<NotificationResponseDto> {
+    this.logger.log(`Finding notification ${id}`);
 
-    // Orchestration: Handle transaction and queue management
-    const notification = await this.orchestrationService.createNotification(
-      notificationData,
-      NotificationPriority.NORMAL,
-    );
-
+    const notification = await this.dataAccess.findById(id);
     return NotificationResponseDto.fromEntity(notification);
   }
 
   /**
-   * Pure business logic: Prepare notification data with value objects
+   * Find all notifications with filters and pagination
    */
-  private prepareNotificationData(
-    dto: CreateNotificationDto,
-  ): Partial<Notification> {
-    // Create value objects with enhanced validation and business logic
-    let recipientVO: Recipient | null = null;
-    let contentVO: NotificationContent | null = null;
-
-    try {
-      // Create recipient value object with channel context
-      recipientVO = Recipient.create(dto.recipient, dto.channel);
-
-      // Create content value object with channel-specific format detection
-      contentVO = NotificationContent.create(dto.content, dto.channel);
-    } catch (error) {
-      this.logger.warn(
-        'Failed to create value objects, falling back to legacy format',
-        {
-          recipient: dto.recipient,
-          channel: dto.channel,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        },
-      );
-      // Continue with legacy fields only
-    }
-
-    return {
-      channel: dto.channel,
-      // Legacy fields (backward compatibility)
-      recipient: dto.recipient,
-      subject: dto.subject,
-      content: dto.content,
-      // New value object fields (preferred)
-      recipientVO,
-      contentVO,
-      metadata: dto.metadata || {},
-      scheduledFor: dto.scheduledFor ? new Date(dto.scheduledFor) : null,
-    };
-  }
-
-  async findOne(id: string): Promise<NotificationResponseDto> {
-    const notification = await this.notificationRepository.findById(id);
-
-    if (!notification) {
-      this.logger.warn(`Attempted to access non-existent notification`, { id });
-      throw new NotFoundException({
-        message: `Notification not found`,
-        context: { notificationId: id },
-      });
-    }
-
-    return NotificationResponseDto.fromEntity(notification);
-  }
-
   async findAll(
-    filters: NotificationFilterDto,
+    filterDto: NotificationFilterDto = {},
+    page: number = 1,
+    limit: number = 20,
   ): Promise<PaginatedResponseDto<NotificationResponseDto>> {
-    const pagination = filters.pagination || new Pagination();
-    const limit = Math.min(pagination.limit, this.config.maxPageSize);
-    const adjustedPagination =
-      pagination.limit > this.config.maxPageSize
-        ? pagination.withLimit(this.config.maxPageSize)
-        : pagination;
+    this.logger.log(`Finding notifications with filters`, {
+      filters: filterDto,
+      page,
+      limit,
+    });
 
-    const result = await this.notificationRepository.findAll(
-      {
-        status: filters.status,
-        channel: filters.channel,
-        recipient: filters.recipient,
-      },
-      { page: adjustedPagination.page, limit: adjustedPagination.limit },
-    );
+    const pagination: PaginationOptions = { page, limit };
+    const result = await this.dataAccess.findAll(filterDto, pagination);
 
-    const notificationDtos = result.data.map((n) =>
-      NotificationResponseDto.fromEntity(n),
+    // Transform entities to response DTOs
+    const responseData = result.data.map((notification) =>
+      NotificationResponseDto.fromEntity(notification),
     );
 
     return PaginatedResponseDto.create(
-      notificationDtos,
+      responseData,
       result.total,
-      adjustedPagination,
+      result.page,
+      result.limit,
     );
   }
 
+  /**
+   * Update notification
+   * Coordinates validation, data preparation, and persistence
+   */
   async update(
     id: string,
     dto: UpdateNotificationDto,
   ): Promise<NotificationResponseDto> {
-    // Business Logic: Validate existence and business rules
-    const notification = await this.notificationRepository.findById(id);
+    this.logger.log(`Updating notification ${id}`);
 
-    if (!notification) {
-      this.logger.warn(`Attempted to update non-existent notification`, { id });
-      throw new NotFoundException({
-        message: `Notification not found`,
-        context: { notificationId: id },
-      });
-    }
-
-    // Business rule: Can't update sent notifications
-    this.validateUpdateAllowed(notification, id);
-
-    // Business Logic: Prepare update data
-    const updateData = this.prepareUpdateData(dto, notification, id);
-
-    // Check if requeue is needed
-    const shouldRequeue =
-      dto.scheduledFor !== undefined &&
-      notification.scheduledFor?.getTime() !==
-        updateData.scheduledFor?.getTime();
-
-    // Orchestration: Handle transaction and queue management
-    const updated = await this.orchestrationService.updateNotification(
-      id,
-      updateData,
-      shouldRequeue,
-    );
-
-    return NotificationResponseDto.fromEntity(updated);
-  }
-
-  /**
-   * Pure business logic: Validate that notification can be updated
-   */
-  private validateUpdateAllowed(notification: Notification, id: string): void {
-    if (
-      notification.status === NotificationStatus.SENT ||
-      notification.status === NotificationStatus.DELIVERED
-    ) {
-      this.logger.warn(`Attempted to update notification in final state`, {
-        notificationId: id,
-        currentStatus: notification.status,
-        channel: notification.channel,
-      });
-      throw new BadRequestException({
-        message: 'Cannot update notifications that have been sent or delivered',
-        context: {
-          notificationId: id,
-          currentStatus: notification.status,
-          channel: notification.channel,
-        },
-      });
-    }
-  }
-
-  /**
-   * Pure business logic: Prepare update data with value objects
-   */
-  private prepareUpdateData(
-    dto: UpdateNotificationDto,
-    notification: Notification,
-    id: string,
-  ): Partial<Notification> {
-    const updateData: Partial<Notification> = {};
-
-    if (dto.subject !== undefined) updateData.subject = dto.subject;
-    if (dto.content !== undefined) {
-      updateData.content = dto.content;
-
-      // Update content value object if content is being updated
-      try {
-        updateData.contentVO = NotificationContent.create(
-          dto.content,
-          notification.channel,
-        );
-      } catch (error) {
-        this.logger.warn(
-          'Failed to create content value object during update',
-          {
-            notificationId: id,
-            channel: notification.channel,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          },
-        );
-        // Keep legacy content field, set contentVO to null
-        updateData.contentVO = null;
-      }
-    }
-    if (dto.metadata !== undefined) updateData.metadata = dto.metadata;
-    if (dto.scheduledFor !== undefined) {
-      updateData.scheduledFor = dto.scheduledFor
-        ? new Date(dto.scheduledFor)
-        : null;
-    }
-    if (dto.status !== undefined) updateData.status = dto.status;
-
-    return updateData;
-  }
-
-  async cancel(id: string): Promise<NotificationResponseDto> {
-    // Business Logic: Validate existence
-    const notification = await this.notificationRepository.findById(id);
-
-    if (!notification) {
-      this.logger.warn(`Attempted to cancel non-existent notification`, { id });
-      throw new NotFoundException({
-        message: `Notification not found`,
-        context: { notificationId: id },
-      });
-    }
-
-    // Business Logic: Use entity method for business rules
     try {
-      notification.markAsCancelled();
-    } catch (error) {
-      this.logger.warn(`Failed to cancel notification due to business rule`, {
-        notificationId: id,
-        currentStatus: notification.status,
-        channel: notification.channel,
-        error: (error as Error).message,
-      });
-      throw new BadRequestException({
-        message: 'Cannot cancel notification in current state',
-        context: {
-          notificationId: id,
-          currentStatus: notification.status,
-          channel: notification.channel,
-          reason: (error as Error).message,
-        },
-      });
-    }
+      // Step 1: Get existing notification
+      const notification = await this.dataAccess.findById(id);
 
-    // Orchestration: Handle transaction and queue cleanup
-    const cancelledNotification =
-      await this.orchestrationService.cancelNotification(
-        id,
-        notification.status,
+      // Step 2: Validate update is allowed using business logic
+      this.businessLogic.validateUpdateAllowed(notification);
+
+      // Step 3: Prepare update data using business logic
+      const updateData = this.businessLogic.prepareUpdateData(
+        dto,
+        notification,
       );
 
-    return NotificationResponseDto.fromEntity(cancelledNotification);
-  }
+      // Step 4: Determine if requeuing is needed
+      const shouldRequeue = this.businessLogic.shouldRequeue(
+        notification.scheduledFor,
+        updateData.scheduledFor || null,
+      );
 
-  async retry(id: string): Promise<NotificationResponseDto> {
-    // Business Logic: Validate existence
-    const notification = await this.notificationRepository.findById(id);
+      // Step 5: Update using orchestration service
+      const updatedNotification = await this.orchestration.updateNotification(
+        id,
+        updateData,
+        shouldRequeue,
+      );
 
-    if (!notification) {
-      this.logger.warn(`Attempted to retry non-existent notification`, { id });
-      throw new NotFoundException({
-        message: `Notification not found`,
-        context: { notificationId: id },
-      });
-    }
+      return NotificationResponseDto.fromEntity(updatedNotification);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
 
-    // Business Logic: Validate retry eligibility using business rules
-    if (!notification.canRetry(this.config.maxRetries)) {
-      this.logger.warn(
-        `Attempted to retry notification that cannot be retried`,
+      this.logger.error(
+        `Failed to update notification ${id}: ${errorMessage}`,
         {
           notificationId: id,
-          currentStatus: notification.status,
-          retryCount: notification.retryCount,
-          maxRetries: this.config.maxRetries,
+          updateFields: Object.keys(dto),
         },
       );
-      throw new BadRequestException({
-        message: 'Notification cannot be retried',
-        context: {
-          notificationId: id,
-          currentStatus: notification.status,
-          retryCount: notification.retryCount,
-          maxRetries: this.config.maxRetries,
-        },
-      });
+      throw error;
     }
-
-    // Orchestration: Handle retry queue management
-    await this.orchestrationService.retryNotification(
-      id,
-      NotificationStatus.CREATED,
-    );
-
-    // Return updated notification for response
-    notification.status = NotificationStatus.QUEUED;
-    return NotificationResponseDto.fromEntity(notification);
   }
 
-  async getStats(): Promise<{
-    statusCounts: Record<NotificationStatus, number>;
-    recentFailureCount: number;
-    recentFailures: Array<{
-      id: string;
-      channel: string;
-      error: string | null;
-      failedAt: Date;
-    }>;
-  }> {
-    const statusCounts = await this.notificationRepository.getStatusCounts();
-    const recentFailures = await this.notificationRepository.getRecentFailures(
-      this.config.recentFailuresWindowMinutes,
-      this.config.maxRecentFailuresDisplay,
+  /**
+   * Cancel notification
+   */
+  async cancel(id: string): Promise<NotificationResponseDto> {
+    this.logger.log(`Cancelling notification ${id}`);
+
+    try {
+      // Step 1: Get existing notification
+      const notification = await this.dataAccess.findById(id);
+
+      // Step 2: Validate cancellation is allowed using business logic
+      this.businessLogic.validateCancellationAllowed(notification);
+
+      // Step 3: Cancel using orchestration service
+      const cancelledNotification = await this.orchestration.cancelNotification(
+        id,
+        NotificationStatus.CANCELLED,
+      );
+
+      return NotificationResponseDto.fromEntity(cancelledNotification);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      this.logger.error(
+        `Failed to cancel notification ${id}: ${errorMessage}`,
+        {
+          notificationId: id,
+        },
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Retry failed notification
+   */
+  async retry(id: string): Promise<NotificationResponseDto> {
+    this.logger.log(`Retrying notification ${id}`);
+
+    try {
+      // Step 1: Get existing notification
+      const notification = await this.dataAccess.findById(id);
+
+      // Step 2: Validate retry is allowed using business logic
+      this.businessLogic.validateRetryAllowed(notification);
+
+      // Step 3: Retry using orchestration service
+      await this.orchestration.retryNotification(
+        id,
+        NotificationStatus.CREATED,
+      );
+
+      // Step 4: Get updated notification
+      const retriedNotification = await this.dataAccess.findById(id);
+
+      return NotificationResponseDto.fromEntity(retriedNotification);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      this.logger.error(`Failed to retry notification ${id}: ${errorMessage}`, {
+        notificationId: id,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get notification statistics
+   */
+  async getStats(): Promise<NotificationStatsDto> {
+    this.logger.log('Generating notification statistics');
+
+    try {
+      return await this.dataAccess.getStats();
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      this.logger.error(`Failed to generate statistics: ${errorMessage}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get notifications by status
+   */
+  async findByStatus(
+    status: NotificationStatus,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResponseDto<NotificationResponseDto>> {
+    this.logger.log(`Finding notifications by status: ${status}`);
+
+    const pagination: PaginationOptions = { page, limit };
+    const result = await this.dataAccess.findByStatus(status, pagination);
+
+    // Transform entities to response DTOs
+    const responseData = result.data.map((notification) =>
+      NotificationResponseDto.fromEntity(notification),
     );
 
-    return {
-      statusCounts,
-      recentFailureCount: recentFailures.length,
-      recentFailures: recentFailures.map((n) => ({
-        id: n.id,
-        channel: n.channel,
-        error: n.lastError,
-        failedAt: n.updatedAt,
-      })),
-    };
+    return PaginatedResponseDto.create(
+      responseData,
+      result.total,
+      result.page,
+      result.limit,
+    );
+  }
+
+  /**
+   * Get notifications by channel
+   */
+  async findByChannel(
+    channel: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResponseDto<NotificationResponseDto>> {
+    this.logger.log(`Finding notifications by channel: ${channel}`);
+
+    const pagination: PaginationOptions = { page, limit };
+    const result = await this.dataAccess.findByChannel(channel, pagination);
+
+    // Transform entities to response DTOs
+    const responseData = result.data.map((notification) =>
+      NotificationResponseDto.fromEntity(notification),
+    );
+
+    return PaginatedResponseDto.create(
+      responseData,
+      result.total,
+      result.page,
+      result.limit,
+    );
+  }
+
+  /**
+   * Get recent failures for monitoring
+   */
+  async getRecentFailures(
+    minutes: number = 60,
+    limit: number = 50,
+  ): Promise<NotificationResponseDto[]> {
+    this.logger.log(`Getting recent failures`, { minutes, limit });
+
+    const failures = await this.dataAccess.getRecentFailures(minutes, limit);
+
+    return failures.map((notification) =>
+      NotificationResponseDto.fromEntity(notification),
+    );
+  }
+
+  /**
+   * Get metrics for a time period
+   */
+  async getMetricsForPeriod(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<{
+    total: number;
+    byStatus: Record<NotificationStatus, number>;
+    byChannel: Record<string, number>;
+  }> {
+    this.logger.log('Getting metrics for time period', {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    });
+
+    return this.dataAccess.getMetricsForPeriod(startDate, endDate);
+  }
+
+  /**
+   * Bulk update status for multiple notifications
+   */
+  async bulkUpdateStatus(
+    ids: string[],
+    status: NotificationStatus,
+  ): Promise<{ updated: number; failed: string[] }> {
+    this.logger.log(`Bulk updating status for ${ids.length} notifications`, {
+      newStatus: status,
+    });
+
+    try {
+      const updatedCount = await this.dataAccess.bulkUpdateStatus(ids, status);
+
+      const failed =
+        ids.length - updatedCount > 0 ? ids.slice(updatedCount) : [];
+
+      return {
+        updated: updatedCount,
+        failed,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      this.logger.error(`Failed bulk status update: ${errorMessage}`, {
+        requestedIds: ids.length,
+        newStatus: status,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Check if notification exists
+   */
+  async exists(id: string): Promise<boolean> {
+    return this.dataAccess.exists(id);
+  }
+
+  /**
+   * Health check method for monitoring
+   */
+  async healthCheck(): Promise<{
+    status: 'healthy' | 'unhealthy';
+    totalNotifications: number;
+    recentFailures: number;
+    pendingNotifications: number;
+  }> {
+    this.logger.debug('Performing health check');
+
+    try {
+      const [statusCounts, recentFailures] = await Promise.all([
+        this.dataAccess.countByStatus(),
+        this.dataAccess.getRecentFailures(60, 100), // Last hour
+      ]);
+
+      const totalNotifications = Object.values(statusCounts).reduce(
+        (sum, count) => sum + count,
+        0,
+      );
+
+      const pendingNotifications =
+        (statusCounts[NotificationStatus.CREATED] || 0) +
+        (statusCounts[NotificationStatus.QUEUED] || 0);
+
+      const status = recentFailures.length > 50 ? 'unhealthy' : 'healthy';
+
+      return {
+        status,
+        totalNotifications,
+        recentFailures: recentFailures.length,
+        pendingNotifications,
+      };
+    } catch (error) {
+      this.logger.error('Health check failed', error);
+
+      return {
+        status: 'unhealthy',
+        totalNotifications: 0,
+        recentFailures: 0,
+        pendingNotifications: 0,
+      };
+    }
   }
 }
