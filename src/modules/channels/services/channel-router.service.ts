@@ -120,11 +120,15 @@ export class ChannelRouter implements OnModuleInit {
       }
 
       return result;
-    } catch (error: any) {
+    } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
       this.logger.error(
         `Channel routing error for ${notification.id}`,
-        error.stack,
+        errorStack,
       );
 
       this.metricsService.recordChannelDelivery(
@@ -136,8 +140,8 @@ export class ChannelRouter implements OnModuleInit {
       return {
         success: false,
         channel: notification.channel,
-        error: error.message,
-        details: error.stack,
+        error: errorMessage,
+        details: errorStack ? { stackTrace: errorStack } : undefined,
       };
     }
   }

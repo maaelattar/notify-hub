@@ -95,7 +95,7 @@ export class NotificationProcessor {
               channel: result.channel,
               deliveredAt: result.deliveredAt,
               details: result.details,
-            } as any,
+            },
             processingTime: Date.now() - startTime,
             attempts: attempt,
           },

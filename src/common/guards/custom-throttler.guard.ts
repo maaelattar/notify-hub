@@ -18,14 +18,14 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
     return super.canActivate(context);
   }
 
-  protected async getTracker(req: Record<string, any>): Promise<string> {
+  protected getTracker(req: Record<string, any>): Promise<string> {
     // Use IP address for anonymous users
     // Use user ID for authenticated users
     const user = req.user as { id?: string } | undefined;
     if (user?.id) {
-      return `user-${user.id}`;
+      return Promise.resolve(`user-${user.id}`);
     }
 
-    return req.ip as string;
+    return Promise.resolve(req.ip as string);
   }
 }

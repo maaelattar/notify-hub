@@ -1,11 +1,15 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { validationExceptionFactory } from './common/factories/validation-exception.factory';
 import { RateLimitHeaderInterceptor } from './common/interceptors/rate-limit-header.interceptor';
-import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
+import {
+  CorrelationIdMiddleware,
+  RequestWithCorrelationId,
+} from './common/middleware/correlation-id.middleware';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ApiVersionInterceptor } from './common/interceptors/api-version.interceptor';
 
@@ -14,8 +18,8 @@ async function bootstrap() {
 
   // Correlation ID middleware
   const correlationMiddleware = new CorrelationIdMiddleware();
-  app.use((req: any, res: any, next: any) =>
-    correlationMiddleware.use(req, res, next),
+  app.use((req: Request, res: Response, next: NextFunction) =>
+    correlationMiddleware.use(req as RequestWithCorrelationId, res, next),
   );
 
   // Global prefix

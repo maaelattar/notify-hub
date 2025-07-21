@@ -6,7 +6,7 @@ export interface ChannelResult {
   channel: NotificationChannel;
   messageId?: string;
   error?: string;
-  details?: any;
+  details?: Record<string, unknown>;
   deliveredAt?: Date;
 }
 

@@ -59,8 +59,11 @@ export class EmailService implements EmailProvider, OnModuleInit {
 
       // Verify connection
       await this.verify();
-    } catch (error: any) {
-      this.logger.error('Failed to initialize email transporter', error.stack);
+    } catch (error) {
+      this.logger.error(
+        'Failed to initialize email transporter',
+        error instanceof Error ? error.stack : String(error),
+      );
       throw error;
     }
   }
@@ -96,10 +99,10 @@ export class EmailService implements EmailProvider, OnModuleInit {
       }
 
       this.logger.log(`Loaded ${this.templates.size} email templates`);
-    } catch (error: any) {
+    } catch (error) {
       this.logger.error(
         'Failed to load email templates - emails may fail',
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw error; // Make template loading failure more explicit
     }
@@ -117,7 +120,11 @@ export class EmailService implements EmailProvider, OnModuleInit {
     // Conditional helper
     handlebars.registerHelper(
       'ifEquals',
-      function (arg1: any, arg2: any, options: any) {
+      function (
+        arg1: unknown,
+        arg2: unknown,
+        options: Handlebars.HelperOptions,
+      ) {
         return arg1 === arg2 ? options.fn(this) : options.inverse(this);
       },
     );
@@ -170,12 +177,15 @@ export class EmailService implements EmailProvider, OnModuleInit {
 
       // Send email
       this.logger.log(`Sending email to ${recipients.join(', ')}`);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const info = await this.transporter.sendMail(mailOptions);
 
       // Prepare result
       const result: EmailResult = {
         success: true,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         messageId: info.messageId,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         envelope: info.envelope,
       };
 
@@ -185,13 +195,17 @@ export class EmailService implements EmailProvider, OnModuleInit {
         this.logger.log(`Preview email at: ${result.previewUrl}`);
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       this.logger.log(`Email sent successfully: ${info.messageId}`);
       return result;
-    } catch (error: any) {
-      this.logger.error(`Failed to send email: ${error.message}`, error.stack);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to send email: ${errorMessage}`, errorStack);
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
       };
     }
   }
@@ -204,7 +218,7 @@ export class EmailService implements EmailProvider, OnModuleInit {
     const emailOptions: EmailOptions = {
       to: notification.recipient,
       subject: notification.subject || 'Notification',
-      template: notification.metadata?.template || 'notification',
+      template: (notification.metadata?.template as string) || 'notification',
       context: {
         content: notification.content,
         notificationId: notification.id,
@@ -230,8 +244,11 @@ export class EmailService implements EmailProvider, OnModuleInit {
       await this.transporter.verify();
       this.logger.log('Email transporter verified successfully');
       return true;
-    } catch (error: any) {
-      this.logger.error('Email transporter verification failed', error.stack);
+    } catch (error) {
+      this.logger.error(
+        'Email transporter verification failed',
+        error instanceof Error ? error.stack : String(error),
+      );
       return false;
     }
   }

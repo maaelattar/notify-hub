@@ -31,4 +31,17 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-argument': 'warn'
     },
   },
+  // Test file overrides - allow necessary flexibility for Jest mocking
+  {
+    files: ['**/*.spec.ts', '**/*.test.ts', '**/test/**/*.ts', '**/*.e2e-spec.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off', // Jest mocks require unbound methods
+      '@typescript-eslint/no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }], // Allow _unused variables
+      '@typescript-eslint/no-unsafe-assignment': 'warn', // Allow mock assignments in tests
+      '@typescript-eslint/no-unsafe-member-access': 'warn', // Allow accessing mock properties
+      '@typescript-eslint/no-unsafe-argument': 'warn', // Allow passing mocks as arguments
+      '@typescript-eslint/no-unsafe-return': 'warn', // Allow returning mocks
+      '@typescript-eslint/no-explicit-any': 'warn', // Allow any in test files for mocking
+    },
+  },
 );
