@@ -2,6 +2,8 @@ import { Module, OnModuleInit } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -70,12 +72,35 @@ import { notificationConfig } from './modules/notifications/config/notification.
         },
       }),
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'global',
+        ttl: 60000, // 1 minute
+        limit: 100, // 100 requests per minute
+      },
+      {
+        name: 'create',
+        ttl: 60000,
+        limit: 10, // 10 creates per minute
+      },
+      {
+        name: 'expensive',
+        ttl: 300000, // 5 minutes
+        limit: 5, // 5 expensive operations per 5 minutes
+      },
+    ]),
     SharedModule,
     NotificationsModule,
     ChannelsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule implements OnModuleInit {
   constructor(private readonly dataSource: DataSource) {}

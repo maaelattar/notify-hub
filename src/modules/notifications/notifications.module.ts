@@ -7,6 +7,7 @@ import { NotificationRepository } from './repositories/notification.repository';
 import { NotificationService } from './services/notification.service';
 import { NotificationProducer } from './services/notification.producer';
 import { NotificationProcessor } from './processors/notification.processor';
+import { NotificationController } from './controllers/notification.controller';
 import { NotificationConfig } from './config/notification.config';
 import { ChannelsModule } from '../channels/channels.module';
 import { SharedModule } from '../shared/shared.module';
@@ -39,7 +40,7 @@ import { SharedModule } from '../shared/shared.module';
     ChannelsModule, // For ChannelRouter
     SharedModule, // For MetricsService
   ],
-  controllers: [],
+  controllers: [NotificationController],
   providers: [
     NotificationRepository,
     NotificationService,

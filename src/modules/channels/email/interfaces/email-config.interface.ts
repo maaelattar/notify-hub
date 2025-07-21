@@ -33,4 +33,3 @@ export interface EmailConfig {
   ethereal: EmailEtherealConfig;
   templates: EmailTemplatesConfig;
 }
-

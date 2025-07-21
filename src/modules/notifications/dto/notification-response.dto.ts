@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NotificationStatus } from '../enums/notification-status.enum';
 import { NotificationChannel } from '../enums/notification-channel.enum';
 import { Notification } from '../entities/notification.entity';
@@ -93,9 +93,54 @@ export class NotificationResponseDto {
   })
   updatedAt: Date;
 
+  @ApiPropertyOptional({
+    description: 'HATEOAS links for resource actions',
+    example: {
+      self: { href: '/api/v1/notifications/123', method: 'GET' },
+      update: { href: '/api/v1/notifications/123', method: 'PATCH' },
+      cancel: { href: '/api/v1/notifications/123', method: 'DELETE' },
+      retry: { href: '/api/v1/notifications/123/retry', method: 'POST' },
+    },
+  })
+  _links?: Record<string, { href: string; method: string }>;
+
   static fromEntity(entity: Notification): NotificationResponseDto {
     const dto = new NotificationResponseDto();
     Object.assign(dto, entity);
+    return dto;
+  }
+
+  static withLinks(notification: Notification): NotificationResponseDto {
+    const dto = NotificationResponseDto.fromEntity(notification);
+    dto._links = {
+      self: {
+        href: `/api/v1/notifications/${notification.id}`,
+        method: 'GET',
+      },
+    };
+
+    // Add conditional links based on status
+    if (
+      notification.status === NotificationStatus.CREATED ||
+      notification.status === NotificationStatus.QUEUED
+    ) {
+      dto._links.update = {
+        href: `/api/v1/notifications/${notification.id}`,
+        method: 'PATCH',
+      };
+      dto._links.cancel = {
+        href: `/api/v1/notifications/${notification.id}`,
+        method: 'DELETE',
+      };
+    }
+
+    if (notification.status === NotificationStatus.FAILED) {
+      dto._links.retry = {
+        href: `/api/v1/notifications/${notification.id}/retry`,
+        method: 'POST',
+      };
+    }
+
     return dto;
   }
 }
