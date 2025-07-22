@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -67,7 +68,7 @@ describe('Notifications (E2E)', () => {
     );
 
     const mockErrorGuidanceFactory = {
-      createGuidance: jest.fn().mockReturnValue(null),
+      createGuidance: vi.fn().mockReturnValue(null),
     } as unknown as ErrorGuidanceFactory;
     app.useGlobalFilters(new GlobalExceptionFilter(mockErrorGuidanceFactory));
     app.useGlobalInterceptors(

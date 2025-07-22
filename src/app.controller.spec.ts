@@ -1,32 +1,28 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EmailService } from './modules/channels/email/services/email.service';
 
 describe('AppController', () => {
   let appController: AppController;
-  let mockEmailService: jest.Mocked<EmailService>;
+  let mockAppService: any;
+  let mockEmailService: any;
 
-  beforeEach(async () => {
-    // Create mock EmailService
+  beforeEach(() => {
+    // Create simple mocks for the controller dependencies
+    mockAppService = {
+      getHello: vi.fn().mockReturnValue('Hello World!'),
+    };
+
     mockEmailService = {
-      send: jest.fn(),
-      validateConfiguration: jest.fn(),
-      getHealthStatus: jest.fn(),
-    } as any;
+      send: vi.fn(),
+      validateConfiguration: vi.fn(),
+      getHealthStatus: vi.fn(),
+    };
 
-    const app: TestingModule = await Test.createTestingModule({
-      controllers: [AppController],
-      providers: [
-        AppService,
-        {
-          provide: EmailService,
-          useValue: mockEmailService,
-        },
-      ],
-    }).compile();
-
-    appController = app.get<AppController>(AppController);
+    // Create controller instance directly with mocked dependencies
+    appController = new AppController(mockAppService, mockEmailService);
   });
 
   describe('root', () => {

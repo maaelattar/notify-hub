@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import * as fs from 'fs/promises';
@@ -10,24 +10,24 @@ import { EmailOptions } from '../interfaces/email.interface';
 import { TestDataBuilder } from '../../../../test/test-utils';
 
 // Mock external modules
-jest.mock('nodemailer');
-jest.mock('fs/promises');
-jest.mock('email-validator');
-jest.mock('handlebars', () => ({
-  compile: jest
+vi.mock('nodemailer');
+vi.mock('fs/promises');
+vi.mock('email-validator');
+vi.mock('handlebars', () => ({
+  compile: vi
     .fn()
     .mockReturnValue((context: any) => `<h1>${context.content}</h1>`),
-  registerHelper: jest.fn(),
+  registerHelper: vi.fn(),
 }));
 
-const mockNodemailer = nodemailer as jest.Mocked<typeof nodemailer>;
-const mockFs = fs as jest.Mocked<typeof fs>;
-const mockEmailValidator = EmailValidator as jest.Mocked<typeof EmailValidator>;
+const mockNodemailer = nodemailer as typeof nodemailer;
+const mockFs = fs as typeof fs;
+const mockEmailValidator = EmailValidator as typeof EmailValidator;
 
 describe('EmailService', () => {
   let service: EmailService;
-  let mockConfigService: jest.Mocked<ConfigService>;
-  let mockTransporter: jest.Mocked<nodemailer.Transporter>;
+  let mockConfigService: ConfigService;
+  let mockTransporter: nodemailer.Transporter;
 
   const mockEmailConfig = {
     ethereal: {
@@ -50,19 +50,19 @@ describe('EmailService', () => {
   beforeEach(async () => {
     // Create mock transporter
     mockTransporter = {
-      sendMail: jest.fn(),
-      verify: jest.fn(),
-      isIdle: jest.fn(),
-    } as unknown as jest.Mocked<nodemailer.Transporter>;
+      sendMail: vi.fn(),
+      verify: vi.fn(),
+      isIdle: vi.fn(),
+    } as unknown as nodemailer.Transporter;
 
     // Create mocks
     mockConfigService = {
-      get: jest.fn().mockImplementation((key: string) => {
+      get: vi.fn().mockImplementation((key: string) => {
         if (key === 'email') return mockEmailConfig;
         if (key === 'email.defaults.from') return mockEmailConfig.defaults.from;
         return null;
       }),
-    } as unknown as jest.Mocked<ConfigService>;
+    } as unknown as ConfigService;
 
     // Mock nodemailer
     mockNodemailer.createTransport.mockReturnValue(mockTransporter);
@@ -80,24 +80,15 @@ describe('EmailService', () => {
     // Mock email validator
     mockEmailValidator.validate.mockReturnValue(true);
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        EmailService,
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<EmailService>(EmailService);
+    // Create service instance directly with mocked dependency
+    service = new EmailService(mockConfigService);
 
     // Mock the transporter verification to succeed
-    (mockTransporter.verify as jest.Mock).mockResolvedValue(true);
+    (mockTransporter.verify as any).mockResolvedValue(true);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('onModuleInit', () => {
@@ -145,26 +136,16 @@ describe('EmailService', () => {
       // Arrange
       // Create a failing transporter mock
       const failingTransporter = {
-        verify: jest.fn().mockRejectedValue(new Error('Connection failed')),
-        sendMail: jest.fn(),
-        isIdle: jest.fn(),
-      } as unknown as jest.Mocked<nodemailer.Transporter>;
+        verify: vi.fn().mockRejectedValue(new Error('Connection failed')),
+        sendMail: vi.fn(),
+        isIdle: vi.fn(),
+      } as unknown as nodemailer.Transporter;
 
       // Mock nodemailer to return the failing transporter
       mockNodemailer.createTransport.mockReturnValueOnce(failingTransporter);
 
-      // Create new service instance
-      const testModule = await Test.createTestingModule({
-        providers: [
-          EmailService,
-          {
-            provide: ConfigService,
-            useValue: mockConfigService,
-          },
-        ],
-      }).compile();
-
-      const testService = testModule.get<EmailService>(EmailService);
+      // Create new service instance directly with mocked dependency
+      const testService = new EmailService(mockConfigService);
 
       // Act - Should not throw but should handle verification failure gracefully
       await testService.onModuleInit();

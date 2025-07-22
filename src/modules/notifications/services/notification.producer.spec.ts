@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bull';
 import { Queue, Job, JobOptions } from 'bull';
@@ -12,19 +13,19 @@ import { TestDateUtils } from '../../../test/test-utils';
 
 describe('NotificationProducer', () => {
   let service: NotificationProducer;
-  let mockQueue: jest.Mocked<Queue<NotificationJobData>>;
+  let mockQueue: Queue<NotificationJobData>;
 
   beforeEach(async () => {
     // Create mock queue
     mockQueue = {
-      add: jest.fn(),
-      getJob: jest.fn(),
-      getJobs: jest.fn(),
-      getJobCounts: jest.fn(),
-      isPaused: jest.fn(),
-      getWorkers: jest.fn(),
-      pause: jest.fn(),
-      resume: jest.fn(),
+      add: vi.fn(),
+      getJob: vi.fn(),
+      getJobs: vi.fn(),
+      getJobCounts: vi.fn(),
+      isPaused: vi.fn(),
+      getWorkers: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
       name: 'notifications',
     } as any;
 
@@ -42,7 +43,7 @@ describe('NotificationProducer', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('addNotificationJob', () => {
@@ -322,7 +323,7 @@ describe('NotificationProducer', () => {
       // Arrange
       const notificationId = 'notification-to-remove';
       const mockJob = {
-        remove: jest.fn().mockResolvedValue(undefined),
+        remove: vi.fn().mockResolvedValue(undefined),
       } as any;
 
       mockQueue.getJob.mockResolvedValue(mockJob);
@@ -341,7 +342,7 @@ describe('NotificationProducer', () => {
       const notificationId = 'notification-in-pending';
       const mockJob = {
         data: { notificationId },
-        remove: jest.fn().mockResolvedValue(undefined),
+        remove: vi.fn().mockResolvedValue(undefined),
       } as any;
 
       mockQueue.getJob.mockResolvedValue(null); // Not found by ID

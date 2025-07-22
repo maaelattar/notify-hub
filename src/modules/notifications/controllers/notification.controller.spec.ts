@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -20,40 +21,27 @@ import { MockNotificationService } from '../../../test/mock-types';
 
 describe('NotificationController (Integration)', () => {
   let controller: NotificationController;
-  let mockNotificationService: MockNotificationService;
-  let module: TestingModule;
+  let mockNotificationService: any;
 
-  beforeEach(async () => {
-    // Set test environment
-    TestEnvironment.setTestEnvironment();
+  beforeEach(() => {
+    // Create simple mock for the service dependency
+    mockNotificationService = {
+      create: vi.fn(),
+      findAll: vi.fn(),
+      findOne: vi.fn(),
+      update: vi.fn(),
+      cancel: vi.fn(),
+      retry: vi.fn(),
+      getStats: vi.fn(),
+    };
 
-    // Create mock service
-    mockNotificationService = MockFactory.createMockNotificationService();
+    // Create controller instance directly with mocked dependency
+    controller = new NotificationController(mockNotificationService);
 
-    module = await Test.createTestingModule({
-      imports: [
-        ThrottlerModule.forRoot([
-          {
-            ttl: 60000,
-            limit: 10,
-          },
-        ]),
-      ],
-      controllers: [NotificationController],
-      providers: [
-        {
-          provide: NotificationService,
-          useValue: mockNotificationService,
-        },
-      ],
-    }).compile();
-
-    controller = module.get<NotificationController>(NotificationController);
   });
 
-  afterEach(async () => {
-    await module.close();
-    jest.clearAllMocks();
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   describe('POST /notifications (create)', () => {
@@ -581,7 +569,7 @@ describe('NotificationController (Integration)', () => {
       const notification = TestDataBuilder.createNotificationResponse();
       mockNotificationService.create.mockResolvedValue(notification);
 
-      const logSpy = jest.spyOn((controller as any).logger, 'log');
+      const logSpy = vi.spyOn((controller as any).logger, 'log');
 
       // Act
       await controller.create(createDto);
@@ -599,7 +587,7 @@ describe('NotificationController (Integration)', () => {
       error.stack = 'Error stack trace';
       mockNotificationService.create.mockRejectedValue(error);
 
-      const errorSpy = jest.spyOn((controller as any).logger, 'error');
+      const errorSpy = vi.spyOn((controller as any).logger, 'error');
 
       // Act & Assert
       await expect(controller.create(createDto)).rejects.toThrow('Test error');
@@ -615,7 +603,7 @@ describe('NotificationController (Integration)', () => {
       const unknownError = 'String error'; // Not an Error instance
       mockNotificationService.create.mockRejectedValue(unknownError);
 
-      const errorSpy = jest.spyOn((controller as any).logger, 'error');
+      const errorSpy = vi.spyOn((controller as any).logger, 'error');
 
       // Act & Assert
       await expect(controller.create(createDto)).rejects.toBe(unknownError);

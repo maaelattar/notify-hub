@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import { ModuleRef } from '@nestjs/core';
 
@@ -11,56 +11,39 @@ import { TestDataBuilder } from '../../../test/test-utils';
 
 describe('ChannelRouter', () => {
   let service: ChannelRouter;
-  let mockModuleRef: jest.Mocked<ModuleRef>;
-  let mockConfigService: jest.Mocked<ConfigService>;
-  let mockMetricsService: jest.Mocked<RedisMetricsService>;
-  let mockEmailService: jest.Mocked<EmailService>;
+  let mockModuleRef: ModuleRef;
+  let mockConfigService: ConfigService;
+  let mockMetricsService: RedisMetricsService;
+  let mockEmailService: EmailService;
 
   beforeEach(async () => {
     // Create mocks
     mockModuleRef = {
-      get: jest.fn(),
+      get: vi.fn(),
     } as any;
 
     mockConfigService = {
-      get: jest.fn().mockReturnValue(true), // Enable all channels by default
+      get: vi.fn().mockReturnValue(true), // Enable all channels by default
     } as any;
 
     mockMetricsService = {
-      recordChannelDelivery: jest.fn().mockResolvedValue(undefined),
-      recordNotificationSent: jest.fn().mockResolvedValue(undefined),
-      recordNotificationFailed: jest.fn().mockResolvedValue(undefined),
-      getMetrics: jest.fn().mockResolvedValue({}),
-      resetMetrics: jest.fn().mockResolvedValue(undefined),
-      healthCheck: jest
+      recordChannelDelivery: vi.fn().mockResolvedValue(undefined),
+      recordNotificationSent: vi.fn().mockResolvedValue(undefined),
+      recordNotificationFailed: vi.fn().mockResolvedValue(undefined),
+      getMetrics: vi.fn().mockResolvedValue({}),
+      resetMetrics: vi.fn().mockResolvedValue(undefined),
+      healthCheck: vi
         .fn()
         .mockResolvedValue({ redis: true, metricsOperational: true }),
     } as any;
 
     mockEmailService = {
-      sendNotification: jest.fn(),
-      verify: jest.fn(),
+      sendNotification: vi.fn(),
+      verify: vi.fn(),
     } as any;
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ChannelRouter,
-        {
-          provide: ModuleRef,
-          useValue: mockModuleRef,
-        },
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-        {
-          provide: RedisMetricsService,
-          useValue: mockMetricsService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<ChannelRouter>(ChannelRouter);
+    // Create service instance directly with mocked dependencies
+    service = new ChannelRouter(mockModuleRef, mockConfigService, mockMetricsService);
 
     // Mock module ref to return email service when requested
     mockModuleRef.get.mockImplementation((token) => {
@@ -72,7 +55,7 @@ describe('ChannelRouter', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('onModuleInit', () => {

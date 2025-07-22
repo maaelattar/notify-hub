@@ -1,4 +1,6 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { RedisMetricsService } from '../../monitoring/services/redis-metrics.service';
 import { RedisProvider } from '../providers/redis.provider';
 import { NotificationPriority } from '../../notifications/enums/notification-priority.enum';
@@ -18,17 +20,8 @@ describe('RedisMetricsService', () => {
     mockRedisProvider = MockFactory.createMockRedisProvider();
     mockRedisProvider.getClient.mockReturnValue(mockRedisClient);
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RedisMetricsService,
-        {
-          provide: RedisProvider,
-          useValue: mockRedisProvider,
-        },
-      ],
-    }).compile();
-
-    service = module.get<RedisMetricsService>(RedisMetricsService);
+    // Create service instance directly with mocked dependencies
+    service = new RedisMetricsService(mockRedisProvider as any);
   });
 
   it('should be defined', () => {
@@ -52,11 +45,11 @@ describe('RedisMetricsService', () => {
 
     it('should handle Redis errors gracefully', async () => {
       mockRedisClient.pipeline.mockReturnValue({
-        hincrby: jest.fn().mockReturnThis(),
-        expire: jest.fn().mockReturnThis(),
-        lpush: jest.fn().mockReturnThis(),
-        ltrim: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockRejectedValue(new Error('Redis error')),
+        hincrby: vi.fn().mockReturnThis(),
+        expire: vi.fn().mockReturnThis(),
+        lpush: vi.fn().mockReturnThis(),
+        ltrim: vi.fn().mockReturnThis(),
+        exec: vi.fn().mockRejectedValue(new Error('Redis error')),
       });
 
       await expect(
@@ -138,12 +131,12 @@ describe('RedisMetricsService', () => {
 
   describe('resetMetrics', () => {
     it('should clear all metrics', async () => {
-      mockRedisClient.keys = jest
+      mockRedisClient.keys = vi
         .fn()
         .mockResolvedValueOnce(['metrics:2024-01-01-10:sent'])
         .mockResolvedValueOnce(['metrics:2024-01-01-10:failed'])
         .mockResolvedValueOnce(['processing_times:2024-01-01-10']);
-      mockRedisClient.del = jest.fn().mockResolvedValue(3);
+      mockRedisClient.del = vi.fn().mockResolvedValue(3);
 
       await service.resetMetrics();
 
@@ -155,8 +148,8 @@ describe('RedisMetricsService', () => {
   describe('healthCheck', () => {
     it('should return health status', async () => {
       const mockRedisProvider = {
-        getClient: jest.fn().mockReturnValue(mockRedisClient),
-        ping: jest.fn().mockResolvedValue('PONG'),
+        getClient: vi.fn().mockReturnValue(mockRedisClient),
+        ping: vi.fn().mockResolvedValue('PONG'),
       };
 
       const module: TestingModule = await Test.createTestingModule({

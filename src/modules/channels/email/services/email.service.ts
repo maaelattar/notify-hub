@@ -73,7 +73,11 @@ export class EmailService implements EmailProvider, OnModuleInit {
    * Load email templates
    */
   private async loadTemplates() {
-    const templatesPath = path.join(__dirname, '../templates');
+    // Use correct path for both development and production
+    const templatesPath =
+      process.env.NODE_ENV === 'production'
+        ? path.join(__dirname, '../templates')
+        : path.join(process.cwd(), 'src/modules/channels/email/templates');
 
     try {
       const files = await fs.readdir(templatesPath);

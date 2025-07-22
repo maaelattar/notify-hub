@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,10 +12,10 @@ import { randomUUID } from 'crypto';
 
 describe('ApiKeyService - Security Tests', () => {
   let service: ApiKeyService;
-  let apiKeyRepository: jest.Mocked<Repository<ApiKey>>;
-  let cryptoService: jest.Mocked<CryptoService>;
-  let auditService: jest.Mocked<SecurityAuditService>;
-  let redisProvider: jest.Mocked<RedisProvider>;
+  let apiKeyRepository: Repository<ApiKey>;
+  let cryptoService: CryptoService;
+  let auditService: SecurityAuditService;
+  let redisProvider: RedisProvider;
   let redisMock: any;
 
   // Test data constants
@@ -29,14 +30,14 @@ describe('ApiKeyService - Security Tests', () => {
   beforeEach(async () => {
     // Create Redis mock with pipeline support
     redisMock = {
-      get: jest.fn(),
-      set: jest.fn(),
-      incr: jest.fn(),
-      expire: jest.fn(),
-      pipeline: jest.fn(() => ({
-        incr: jest.fn(),
-        expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([
+      get: vi.fn(),
+      set: vi.fn(),
+      incr: vi.fn(),
+      expire: vi.fn(),
+      pipeline: vi.fn(() => ({
+        incr: vi.fn(),
+        expire: vi.fn(),
+        exec: vi.fn().mockResolvedValue([
           [null, 1],
           [null, 'OK'],
         ]),
@@ -53,27 +54,27 @@ describe('ApiKeyService - Security Tests', () => {
         {
           provide: CryptoService,
           useValue: {
-            generateApiKey: jest.fn(),
-            hashApiKey: jest.fn(),
-            isValidApiKeyFormat: jest.fn(),
-            compareHashes: jest.fn(),
+            generateApiKey: vi.fn(),
+            hashApiKey: vi.fn(),
+            isValidApiKeyFormat: vi.fn(),
+            compareHashes: vi.fn(),
           },
         },
         {
           provide: SecurityAuditService,
           useValue: {
-            logApiKeyCreated: jest.fn(),
-            logApiKeyUsed: jest.fn(),
-            logInvalidApiKeyAttempt: jest.fn(),
-            logExpiredApiKeyAttempt: jest.fn(),
-            logSecurityEvent: jest.fn(),
-            logApiKeyDeleted: jest.fn(),
+            logApiKeyCreated: vi.fn(),
+            logApiKeyUsed: vi.fn(),
+            logInvalidApiKeyAttempt: vi.fn(),
+            logExpiredApiKeyAttempt: vi.fn(),
+            logSecurityEvent: vi.fn(),
+            logApiKeyDeleted: vi.fn(),
           },
         },
         {
           provide: RedisProvider,
           useValue: {
-            getClient: jest.fn().mockReturnValue(redisMock),
+            getClient: vi.fn().mockReturnValue(redisMock),
           },
         },
       ],
@@ -165,9 +166,9 @@ describe('ApiKeyService - Security Tests', () => {
         createdByUserId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-        isExpired: jest.fn().mockReturnValue(false),
-        hasScope: jest.fn().mockReturnValue(true),
-        canPerformOperation: jest.fn().mockReturnValue(true),
+        isExpired: vi.fn().mockReturnValue(false),
+        hasScope: vi.fn().mockReturnValue(true),
+        canPerformOperation: vi.fn().mockReturnValue(true),
       } as any;
     });
 
@@ -247,7 +248,7 @@ describe('ApiKeyService - Security Tests', () => {
     it('should reject expired API keys', async () => {
       // Arrange
       const expiredKey = { ...validApiKey } as ApiKey;
-      expiredKey.isExpired = jest.fn().mockReturnValue(true);
+      expiredKey.isExpired = vi.fn().mockReturnValue(true);
 
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
       cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
@@ -277,7 +278,7 @@ describe('ApiKeyService - Security Tests', () => {
 
     it('should reject API keys without required scope', async () => {
       // Arrange
-      validApiKey.hasScope = jest.fn().mockReturnValue(false);
+      validApiKey.hasScope = vi.fn().mockReturnValue(false);
 
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
       cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
@@ -372,9 +373,9 @@ describe('ApiKeyService - Security Tests', () => {
     it('should enforce rate limits per API key', async () => {
       // Arrange
       const pipeline = {
-        incr: jest.fn(),
-        expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([
+        incr: vi.fn(),
+        expire: vi.fn(),
+        exec: vi.fn().mockResolvedValue([
           [null, 1001],
           [null, 'OK'],
         ]), // Exceeds limit of 1000
@@ -410,15 +411,15 @@ describe('ApiKeyService - Security Tests', () => {
         scopes: ['notifications:create'],
         rateLimit: { hourly: 100, daily: 1000 },
         isActive: true,
-        isExpired: jest.fn().mockReturnValue(false),
-        hasScope: jest.fn().mockReturnValue(true),
-        canPerformOperation: jest.fn().mockReturnValue(true),
+        isExpired: vi.fn().mockReturnValue(false),
+        hasScope: vi.fn().mockReturnValue(true),
+        canPerformOperation: vi.fn().mockReturnValue(true),
       } as any;
 
       const pipeline = {
-        incr: jest.fn(),
-        expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([
+        incr: vi.fn(),
+        expire: vi.fn(),
+        exec: vi.fn().mockResolvedValue([
           [null, 50],
           [null, 'OK'],
         ]), // Within limit
@@ -459,9 +460,9 @@ describe('ApiKeyService - Security Tests', () => {
         scopes: ['notifications:create'],
         rateLimit: { hourly: 100, daily: 1000 },
         isActive: true,
-        isExpired: jest.fn().mockReturnValue(false),
-        hasScope: jest.fn().mockReturnValue(true),
-        canPerformOperation: jest.fn().mockReturnValue(true),
+        isExpired: vi.fn().mockReturnValue(false),
+        hasScope: vi.fn().mockReturnValue(true),
+        canPerformOperation: vi.fn().mockReturnValue(true),
       } as any;
 
       apiKeyRepository.findOne.mockResolvedValue(validApiKey);
@@ -488,9 +489,9 @@ describe('ApiKeyService - Security Tests', () => {
     it('should log rate limit violations', async () => {
       // Arrange
       const pipeline = {
-        incr: jest.fn(),
-        expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([
+        incr: vi.fn(),
+        expire: vi.fn(),
+        exec: vi.fn().mockResolvedValue([
           [null, 1001],
           [null, 'OK'],
         ]),
@@ -792,8 +793,8 @@ describe('ApiKeyService - Security Tests', () => {
         scopes: ['notifications:create'],
         rateLimit: { hourly: 100, daily: 1000 },
         isActive: true,
-        isExpired: jest.fn().mockReturnValue(false),
-        hasScope: jest.fn().mockReturnValue(true),
+        isExpired: vi.fn().mockReturnValue(false),
+        hasScope: vi.fn().mockReturnValue(true),
       } as any;
 
       cryptoService.isValidApiKeyFormat.mockReturnValue(true);
@@ -802,9 +803,9 @@ describe('ApiKeyService - Security Tests', () => {
       apiKeyRepository.update.mockResolvedValue(undefined as any);
 
       const pipeline = {
-        incr: jest.fn(),
-        expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([
+        incr: vi.fn(),
+        expire: vi.fn(),
+        exec: vi.fn().mockResolvedValue([
           [null, 50],
           [null, 'OK'],
         ]),
@@ -838,9 +839,9 @@ describe('ApiKeyService - Security Tests', () => {
       cryptoService.hashApiKey.mockReturnValue(VALID_HASH);
 
       const pipeline = {
-        incr: jest.fn(),
-        expire: jest.fn(),
-        exec: jest.fn().mockResolvedValue([
+        incr: vi.fn(),
+        expire: vi.fn(),
+        exec: vi.fn().mockResolvedValue([
           [null, 'not-a-number'],
           [null, 'OK'],
         ]),
@@ -853,8 +854,8 @@ describe('ApiKeyService - Security Tests', () => {
         name: 'Test Key',
         scopes: ['notifications:create'],
         isActive: true,
-        isExpired: jest.fn().mockReturnValue(false),
-        hasScope: jest.fn().mockReturnValue(true),
+        isExpired: vi.fn().mockReturnValue(false),
+        hasScope: vi.fn().mockReturnValue(true),
       } as any;
 
       apiKeyRepository.findOne.mockResolvedValue(validApiKey);

@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -10,23 +11,16 @@ import {
 
 describe('ErrorGuidanceFactory', () => {
   let factory: ErrorGuidanceFactory;
+  let mockConfigService: any;
 
-  beforeEach(async () => {
-    const mockConfigService = {
-      get: jest.fn().mockReturnValue('http://localhost:3000'),
+  beforeEach(() => {
+    // Create simple mock for the service dependency
+    mockConfigService = {
+      get: vi.fn().mockReturnValue('http://localhost:3000'),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ErrorGuidanceFactory,
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-      ],
-    }).compile();
-
-    factory = module.get<ErrorGuidanceFactory>(ErrorGuidanceFactory);
+    // Create service instance directly with mocked dependency
+    factory = new ErrorGuidanceFactory(mockConfigService);
   });
 
   it('should be defined', () => {

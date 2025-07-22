@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,8 +13,8 @@ import { randomUUID } from 'crypto';
 
 describe('SecurityAuditService - Security Tests', () => {
   let service: SecurityAuditService;
-  let auditRepository: jest.Mocked<Repository<SecurityAuditLog>>;
-  let logger: jest.Mocked<Logger>;
+  let auditRepository: Repository<SecurityAuditLog>;
+  let logger: Logger;
 
   // Test data constants
   const TEST_API_KEY_ID = randomUUID();
@@ -35,10 +36,10 @@ describe('SecurityAuditService - Security Tests', () => {
         {
           provide: Logger,
           useValue: {
-            log: jest.fn(),
-            error: jest.fn(),
-            warn: jest.fn(),
-            debug: jest.fn(),
+            log: vi.fn(),
+            error: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn(),
           },
         },
       ],
@@ -49,9 +50,9 @@ describe('SecurityAuditService - Security Tests', () => {
     logger = module.get(Logger);
 
     // Spy on the actual logger instance used by the service
-    jest.spyOn(service['logger'], 'log').mockImplementation();
-    jest.spyOn(service['logger'], 'error').mockImplementation();
-    jest.spyOn(service['logger'], 'warn').mockImplementation();
+    vi.spyOn(service['logger'], 'log').mockImplementation();
+    vi.spyOn(service['logger'], 'error').mockImplementation();
+    vi.spyOn(service['logger'], 'warn').mockImplementation();
   });
 
   describe('Security Event Logging', () => {
@@ -473,10 +474,10 @@ describe('SecurityAuditService - Security Tests', () => {
       ] as SecurityAuditLog[];
 
       const mockQueryBuilder = {
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue(mockEvents),
+        orderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue(mockEvents),
       };
 
       auditRepository.createQueryBuilder.mockReturnValue(
@@ -505,10 +506,10 @@ describe('SecurityAuditService - Security Tests', () => {
       const mockEvents = [] as SecurityAuditLog[];
 
       const mockQueryBuilder = {
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue(mockEvents),
+        orderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue(mockEvents),
       };
 
       auditRepository.createQueryBuilder.mockReturnValue(
@@ -557,10 +558,10 @@ describe('SecurityAuditService - Security Tests', () => {
         .mockResolvedValueOnce(3); // Expired key attempts
 
       const mockQueryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getRawOne: jest.fn().mockResolvedValue({ count: '12' }),
+        select: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getRawOne: vi.fn().mockResolvedValue({ count: '12' }),
       };
 
       auditRepository.createQueryBuilder.mockReturnValue(

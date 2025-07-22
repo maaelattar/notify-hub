@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { vi, beforeAll, afterAll, expect } from 'vitest';
 import { TestEnvironment } from '../src/test/test-utils';
 
 // Global test setup
@@ -7,14 +8,14 @@ beforeAll(() => {
   TestEnvironment.setTestEnvironment();
 
   // Configure global test settings
-  jest.setTimeout(30000); // 30 second timeout for unit tests
+  // Vitest timeout is configured in vitest.config.mjs
 
   // Suppress console output during tests (optional)
   if (process.env.SUPPRESS_LOGS === 'true') {
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
-    jest.spyOn(console, 'info').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'info').mockImplementation(() => {});
   }
 });
 
@@ -26,7 +27,7 @@ afterAll(() => {
   }
 });
 
-// Configure Jest globals
+// Configure Vitest custom matchers
 expect.extend({
   // Custom matchers can be added here
   toBeWithinRange(received: number, floor: number, ceiling: number) {
@@ -49,20 +50,15 @@ expect.extend({
 
 // Declare custom matcher types for TypeScript
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace jest {
-    interface Matchers<R> {
-      toBeWithinRange(floor: number, ceiling: number): R;
-    }
+  interface CustomMatchers<R = unknown> {
+    toBeWithinRange(floor: number, ceiling: number): R;
   }
 }
 
 // Mock timers configuration
-jest.useFakeTimers({
-  // Use real timers for setTimeout/setInterval by default
-  doNotFake: ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'],
-  // Can be overridden in individual tests
-});
+vi.useFakeTimers();
+// Note: Vitest handles timer mocking differently than Jest
+// Individual tests can override with vi.useRealTimers() if needed
 
 // Global error handling
 process.on('unhandledRejection', (reason, promise) => {

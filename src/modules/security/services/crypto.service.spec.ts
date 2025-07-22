@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CryptoService } from './crypto.service';
 import * as crypto from 'crypto';
@@ -328,7 +329,7 @@ describe('CryptoService - Security Tests', () => {
         'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
 
       // Mock crypto.timingSafeEqual to verify it's being called
-      const timingSafeEqualSpy = jest.spyOn(crypto, 'timingSafeEqual');
+      const timingSafeEqualSpy = vi.spyOn(crypto, 'timingSafeEqual');
 
       service.compareHashes(hash1, hash2);
 

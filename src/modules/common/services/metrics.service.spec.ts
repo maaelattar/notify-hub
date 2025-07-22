@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import Redis from 'ioredis';
@@ -8,54 +9,54 @@ import { NotificationPriority } from '../../notifications/enums/notification-pri
 
 describe('RedisMetricsService', () => {
   let service: RedisMetricsService;
-  let mockLogger: jest.Mocked<Logger>;
-  let mockRedisProvider: jest.Mocked<RedisProvider>;
-  let mockRedisClient: jest.Mocked<Redis>;
+  let mockLogger: Logger;
+  let mockRedisProvider: RedisProvider;
+  let mockRedisClient: Redis;
 
   beforeEach(async () => {
     // Mock Redis client
     mockRedisClient = {
-      pipeline: jest.fn(),
-      hincrby: jest.fn(),
-      lpush: jest.fn(),
-      ltrim: jest.fn(),
-      expire: jest.fn(),
-      hgetall: jest.fn(),
-      lrange: jest.fn(),
-      keys: jest.fn(),
-      del: jest.fn(),
-      set: jest.fn(),
-      get: jest.fn(),
-      ping: jest.fn(),
+      pipeline: vi.fn(),
+      hincrby: vi.fn(),
+      lpush: vi.fn(),
+      ltrim: vi.fn(),
+      expire: vi.fn(),
+      hgetall: vi.fn(),
+      lrange: vi.fn(),
+      keys: vi.fn(),
+      del: vi.fn(),
+      set: vi.fn(),
+      get: vi.fn(),
+      ping: vi.fn(),
     } as any;
 
     // Mock pipeline behavior
     const mockPipeline = {
-      hincrby: jest.fn().mockReturnThis(),
-      lpush: jest.fn().mockReturnThis(),
-      ltrim: jest.fn().mockReturnThis(),
-      expire: jest.fn().mockReturnThis(),
-      hgetall: jest.fn().mockReturnThis(),
-      lrange: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue([[null, 'OK']]),
+      hincrby: vi.fn().mockReturnThis(),
+      lpush: vi.fn().mockReturnThis(),
+      ltrim: vi.fn().mockReturnThis(),
+      expire: vi.fn().mockReturnThis(),
+      hgetall: vi.fn().mockReturnThis(),
+      lrange: vi.fn().mockReturnThis(),
+      exec: vi.fn().mockResolvedValue([[null, 'OK']]),
     };
     mockRedisClient.pipeline.mockReturnValue(mockPipeline as any);
 
     // Mock RedisProvider
     mockRedisProvider = {
-      getClient: jest.fn().mockReturnValue(mockRedisClient),
-      ping: jest.fn().mockResolvedValue(true),
-      isConnected: jest.fn().mockReturnValue(true),
-      onModuleDestroy: jest.fn(),
+      getClient: vi.fn().mockReturnValue(mockRedisClient),
+      ping: vi.fn().mockResolvedValue(true),
+      isConnected: vi.fn().mockReturnValue(true),
+      onModuleDestroy: vi.fn(),
     } as any;
 
     // Mock the logger
     mockLogger = {
-      debug: jest.fn(),
-      error: jest.fn(),
-      log: jest.fn(),
-      warn: jest.fn(),
-      verbose: jest.fn(),
+      debug: vi.fn(),
+      error: vi.fn(),
+      log: vi.fn(),
+      warn: vi.fn(),
+      verbose: vi.fn(),
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -72,7 +73,7 @@ describe('RedisMetricsService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('recordNotificationSent', () => {

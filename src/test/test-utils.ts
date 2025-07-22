@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, ObjectLiteral } from 'typeorm';
+import { MockedFunction, vi } from 'vitest';
 import { Notification } from '../modules/notifications/entities/notification.entity';
 import { NotificationChannel } from '../modules/notifications/enums/notification-channel.enum';
 import { NotificationStatus } from '../modules/notifications/enums/notification-status.enum';
@@ -150,49 +151,47 @@ export class TestDataBuilder {
 }
 
 /**
- * Mock factory for creating Jest mocks of common services
+ * Mock factory for creating Vitest mocks of common services
  */
 export class MockFactory {
   /**
    * Creates a mock repository with common methods
    */
-  static createMockRepository<T extends ObjectLiteral = any>(): jest.Mocked<
-    Repository<T>
-  > {
+  static createMockRepository<T extends ObjectLiteral = any>(): MockedFunction<Repository<T>> {
     return {
-      find: jest.fn(),
-      findOne: jest.fn(),
-      findOneBy: jest.fn(),
-      findOneOrFail: jest.fn(),
-      save: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      remove: jest.fn(),
-      count: jest.fn(),
-      createQueryBuilder: jest.fn(),
+      find: vi.fn(),
+      findOne: vi.fn(),
+      findOneBy: vi.fn(),
+      findOneOrFail: vi.fn(),
+      save: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      remove: vi.fn(),
+      count: vi.fn(),
+      createQueryBuilder: vi.fn(),
       manager: {
-        transaction: jest.fn(),
+        transaction: vi.fn(),
       } as any,
       metadata: {} as any,
       target: {} as any,
-      query: jest.fn(),
-      clear: jest.fn(),
-      increment: jest.fn(),
-      decrement: jest.fn(),
-      findAndCount: jest.fn(),
-      findByIds: jest.fn(),
-      findOneById: jest.fn(),
-      getId: jest.fn(),
-      hasId: jest.fn(),
-      merge: jest.fn(),
-      preload: jest.fn(),
-      recover: jest.fn(),
-      restore: jest.fn(),
-      softDelete: jest.fn(),
-      softRemove: jest.fn(),
-      upsert: jest.fn(),
-    } as unknown as jest.Mocked<Repository<T>>;
+      query: vi.fn(),
+      clear: vi.fn(),
+      increment: vi.fn(),
+      decrement: vi.fn(),
+      findAndCount: vi.fn(),
+      findByIds: vi.fn(),
+      findOneById: vi.fn(),
+      getId: vi.fn(),
+      hasId: vi.fn(),
+      merge: vi.fn(),
+      preload: vi.fn(),
+      recover: vi.fn(),
+      restore: vi.fn(),
+      softDelete: vi.fn(),
+      softRemove: vi.fn(),
+      upsert: vi.fn(),
+    } as unknown as MockedFunction<Repository<T>>;
   }
 
   /**
@@ -200,13 +199,13 @@ export class MockFactory {
    */
   static createMockNotificationService(): MockNotificationService {
     return {
-      create: jest.fn(),
-      findAll: jest.fn(),
-      findOne: jest.fn(),
-      update: jest.fn(),
-      cancel: jest.fn(),
-      retry: jest.fn(),
-      getStats: jest.fn(),
+      create: vi.fn(),
+      findAll: vi.fn(),
+      findOne: vi.fn(),
+      update: vi.fn(),
+      cancel: vi.fn(),
+      retry: vi.fn(),
+      getStats: vi.fn(),
     };
   }
 
@@ -215,10 +214,10 @@ export class MockFactory {
    */
   static createMockNotificationProducer(): MockNotificationProducer {
     return {
-      addNotificationJob: jest.fn(),
-      removeNotificationJob: jest.fn(),
-      getJobStatus: jest.fn(),
-      getQueueHealth: jest.fn(),
+      addNotificationJob: vi.fn(),
+      removeNotificationJob: vi.fn(),
+      getJobStatus: vi.fn(),
+      getQueueHealth: vi.fn(),
     };
   }
 
@@ -227,15 +226,15 @@ export class MockFactory {
    */
   static createMockQueueService(): MockBullQueue {
     return {
-      add: jest.fn(),
-      getJob: jest.fn(),
-      removeJobs: jest.fn(),
-      getJobs: jest.fn(),
-      getJobCounts: jest.fn(),
-      clean: jest.fn(),
-      pause: jest.fn(),
-      resume: jest.fn(),
-      isPaused: jest.fn(),
+      add: vi.fn(),
+      getJob: vi.fn(),
+      removeJobs: vi.fn(),
+      getJobs: vi.fn(),
+      getJobCounts: vi.fn(),
+      clean: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      isPaused: vi.fn(),
     };
   }
 
@@ -244,9 +243,9 @@ export class MockFactory {
    */
   static createMockChannelRouter() {
     return {
-      routeNotification: jest.fn(),
-      getAvailableChannels: jest.fn(),
-      isChannelAvailable: jest.fn(),
+      routeNotification: vi.fn(),
+      getAvailableChannels: vi.fn(),
+      isChannelAvailable: vi.fn(),
     };
   }
 
@@ -255,11 +254,11 @@ export class MockFactory {
    */
   static createMockLogger(): MockLogger {
     return {
-      log: jest.fn(),
-      error: jest.fn(),
-      warn: jest.fn(),
-      debug: jest.fn(),
-      verbose: jest.fn(),
+      log: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn(),
+      verbose: vi.fn(),
     };
   }
 }
@@ -292,7 +291,7 @@ export abstract class BaseTestClass {
    */
   protected getMockRepository<T extends ObjectLiteral>(
     entity: any,
-  ): jest.Mocked<Repository<T>> {
+  ): MockedFunction<Repository<T>> {
     return this.module.get(getRepositoryToken(entity));
   }
 
@@ -347,7 +346,7 @@ export class TestAssertions {
    * Asserts that a service method was called with the correct parameters
    */
   static assertServiceMethodCalled(
-    mockMethod: jest.Mock,
+    mockMethod: MockedFunction<any>,
     expectedParams: any[],
     callIndex: number = 0,
   ): void {

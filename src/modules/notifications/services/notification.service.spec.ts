@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, EntityManager, Repository } from 'typeorm';
@@ -25,105 +26,142 @@ import { Pagination } from '../../../common/value-objects/pagination.vo';
 
 describe('NotificationService', () => {
   let service: NotificationService;
-  let mockNotificationRepository: jest.Mocked<NotificationRepository>;
-  let mockNotificationProducer: jest.Mocked<NotificationProducer>;
-  let mockConfigService: jest.Mocked<ConfigService>;
-  let mockDataSource: jest.Mocked<DataSource>;
-  let mockEntityManager: jest.Mocked<EntityManager>;
-  let mockRepository: jest.Mocked<Repository<Notification>>;
-  let mockValidatorService: jest.Mocked<NotificationValidatorService>;
-  let mockOrchestrationService: jest.Mocked<NotificationOrchestrationService>;
+  let mockBusinessLogic: any;
+  let mockDataAccess: any;
+  let mockOrchestration: any;
+  let mockRepository: any;
+  let mockNotificationRepository: any;
+  let mockNotificationProducer: any;
+  let mockConfig: any;
 
-  const mockConfig = {
-    maxRetries: 3,
-    defaultPageSize: 20,
-    maxPageSize: 100,
-    recentFailuresWindowMinutes: 60,
-    pendingNotificationsBatchSize: 100,
-    maxRecentFailuresDisplay: 10,
-  };
+  beforeEach(() => {
+    // Create simple mocks for the service dependencies
+    mockBusinessLogic = {
+      validateNotificationData: vi.fn().mockResolvedValue({
+        isValid: true,
+        criticalErrors: [],
+        warningErrors: [],
+        allErrors: [],
+      }),
+      prepareNotificationData: vi.fn().mockReturnValue({
+        channel: 'email',
+        recipient: 'test@example.com',
+        subject: 'Test Subject',
+        content: 'Test Content',
+        scheduledFor: null,
+        metadata: {},
+      }),
+      prepareUpdateData: vi.fn().mockReturnValue({
+        subject: 'Updated Subject',
+        content: 'Updated Content',
+        scheduledFor: null,
+      }),
+      validateUpdateData: vi.fn().mockResolvedValue({
+        isValid: true,
+        criticalErrors: [],
+        warningErrors: [],
+        allErrors: [],
+      }),
+      validateUpdateAllowed: vi.fn().mockResolvedValue(true),
+      validateCancellationAllowed: vi.fn().mockResolvedValue(true),
+      validateRetryAllowed: vi.fn().mockResolvedValue(true),
+      shouldRequeue: vi.fn().mockReturnValue(false),
+      canCancel: vi.fn().mockReturnValue(true),
+      canRetry: vi.fn().mockReturnValue(true),
+    };
 
-  beforeEach(async () => {
-    // Create mocks
+    mockDataAccess = {
+      findById: vi.fn().mockResolvedValue({
+        id: 'test-id',
+        channel: 'email',
+        recipient: 'test@example.com',
+        subject: 'Test Subject',
+        content: 'Test Content',
+        status: 'pending',
+        scheduledFor: null,
+        metadata: {},
+      }),
+      findAll: vi.fn().mockResolvedValue({
+        notifications: [],
+        totalCount: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0,
+      }),
+      create: vi.fn().mockResolvedValue({
+        id: 'test-id',
+        status: 'created',
+      }),
+      update: vi.fn().mockResolvedValue({
+        id: 'test-id',
+        status: 'updated',
+      }),
+      delete: vi.fn().mockResolvedValue(true),
+      getStats: vi.fn().mockResolvedValue({
+        pending: 5,
+        sent: 10,
+        failed: 2,
+      }),
+    };
+
+    mockOrchestration = {
+      createNotification: vi.fn().mockResolvedValue({
+        id: 'test-id',
+        channel: 'email',
+        recipient: 'test@example.com',
+        subject: 'Test Subject',
+        content: 'Test Content',
+        status: 'created',
+        createdAt: new Date(),
+      }),
+      updateNotification: vi.fn().mockResolvedValue({
+        id: 'test-id',
+        status: 'updated',
+      }),
+      cancelNotification: vi.fn().mockResolvedValue({
+        id: 'test-id',
+        status: 'cancelled',
+      }),
+      retryNotification: vi.fn().mockResolvedValue({
+        id: 'test-id',
+        status: 'retrying',
+      }),
+    };
+
+    // Legacy mocks for backward compatibility with existing tests
+    mockRepository = {
+      save: vi.fn(),
+      update: vi.fn(),
+      findOne: vi.fn(),
+    };
+
     mockNotificationRepository = {
-      findById: jest.fn(),
-      findAll: jest.fn(),
-      updateStatus: jest.fn(),
-      update: jest.fn(),
-      getStatusCounts: jest.fn(),
-      getRecentFailures: jest.fn(),
-    } as any;
+      updateStatus: vi.fn(),
+      update: vi.fn(),
+      getRecentFailures: vi.fn(),
+    };
 
     mockNotificationProducer = {
-      addNotificationJob: jest.fn(),
-      removeNotificationJob: jest.fn(),
-    } as any;
+      addNotificationJob: vi.fn(),
+      removeNotificationJob: vi.fn(),
+    };
 
-    mockConfigService = {
-      get: jest.fn().mockReturnValue(mockConfig),
-    } as any;
+    mockConfig = {
+      maxRetries: 3,
+      recentFailuresWindowMinutes: 30,
+      maxRecentFailuresDisplay: 10,
+    };
 
-    mockValidatorService = {
-      validate: jest.fn(),
-      validateWithCategories: jest.fn(),
-    } as any;
-
-    mockOrchestrationService = {
-      createNotification: jest.fn(),
-      updateNotification: jest.fn(),
-      cancelNotification: jest.fn(),
-      retryNotification: jest.fn(),
-    } as any;
-
-    mockRepository = MockFactory.createMockRepository<Notification>();
-    mockEntityManager = {
-      getRepository: jest.fn().mockReturnValue(mockRepository),
-    } as any;
-
-    mockDataSource = {
-      transaction: jest
-        .fn()
-        .mockImplementation(
-          (callback: (manager: EntityManager) => Promise<unknown>) =>
-            callback(mockEntityManager),
-        ),
-    } as any;
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        NotificationService,
-        {
-          provide: NotificationRepository,
-          useValue: mockNotificationRepository,
-        },
-        {
-          provide: NotificationProducer,
-          useValue: mockNotificationProducer,
-        },
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-        {
-          provide: DataSource,
-          useValue: mockDataSource,
-        },
-        {
-          provide: NotificationValidatorService,
-          useValue: mockValidatorService,
-        },
-        {
-          provide: NotificationOrchestrationService,
-          useValue: mockOrchestrationService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<NotificationService>(NotificationService);
+    // Create service instance directly with mocked dependencies
+    service = new NotificationService(
+      mockBusinessLogic,
+      mockDataAccess,
+      mockOrchestration,
+    );
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('create', () => {
@@ -146,7 +184,7 @@ describe('NotificationService', () => {
       });
 
       // Mock validation service to return valid result
-      mockValidatorService.validateWithCategories.mockResolvedValue({
+      mockBusinessLogic.validateNotificationData.mockResolvedValue({
         isValid: true,
         criticalErrors: [],
         warningErrors: [],
@@ -154,7 +192,7 @@ describe('NotificationService', () => {
       });
 
       // Mock orchestration service to return created notification
-      mockOrchestrationService.createNotification.mockResolvedValue(
+      mockOrchestration.createNotification.mockResolvedValue(
         savedNotification,
       );
 
@@ -162,7 +200,7 @@ describe('NotificationService', () => {
       const result = await service.create(createDto);
 
       // Assert - Orchestration service should be called with prepared data
-      expect(mockOrchestrationService.createNotification).toHaveBeenCalledWith(
+      expect(mockOrchestration.createNotification).toHaveBeenCalledWith(
         {
           channel: createDto.channel,
           // Legacy fields for backward compatibility
@@ -199,7 +237,7 @@ describe('NotificationService', () => {
         scheduledFor,
       });
 
-      mockValidatorService.validateWithCategories.mockResolvedValue({
+      mockBusinessLogic.validateNotificationData.mockResolvedValue({
         isValid: true,
         criticalErrors: [],
         warningErrors: [],
@@ -238,7 +276,7 @@ describe('NotificationService', () => {
         },
       ];
 
-      mockValidatorService.validateWithCategories.mockResolvedValue({
+      mockBusinessLogic.validateNotificationData.mockResolvedValue({
         isValid: false,
         criticalErrors: validationErrors,
         warningErrors: [],
@@ -269,7 +307,7 @@ describe('NotificationService', () => {
         status: NotificationStatus.CREATED,
       });
 
-      mockValidatorService.validateWithCategories.mockResolvedValue({
+      mockBusinessLogic.validateNotificationData.mockResolvedValue({
         isValid: true,
         criticalErrors: [],
         warningErrors: [],
@@ -306,13 +344,13 @@ describe('NotificationService', () => {
       const notification = TestDataBuilder.createNotification({
         id: notificationId,
       });
-      mockNotificationRepository.findById.mockResolvedValue(notification);
+      mockDataAccess.findById.mockResolvedValue(notification);
 
       // Act
       const result = await service.findOne(notificationId);
 
       // Assert
-      expect(mockNotificationRepository.findById).toHaveBeenCalledWith(
+      expect(mockDataAccess.findById).toHaveBeenCalledWith(
         notificationId,
       );
       TestAssertions.assertNotificationResponse(result, {
@@ -325,7 +363,7 @@ describe('NotificationService', () => {
     it('should throw NotFoundException when notification not found', async () => {
       // Arrange
       const notificationId = 'non-existent-id';
-      mockNotificationRepository.findById.mockResolvedValue(null);
+      mockDataAccess.findById.mockResolvedValue(null);
 
       // Act & Assert
       await TestAssertions.assertThrowsError(
@@ -342,7 +380,7 @@ describe('NotificationService', () => {
       const notifications = TestDataBuilder.createNotifications(5);
       const filters = new NotificationFilterDto();
 
-      mockNotificationRepository.findAll.mockResolvedValue({
+      mockDataAccess.findAll.mockResolvedValue({
         data: notifications,
         total: 25,
         page: 1,
@@ -356,7 +394,7 @@ describe('NotificationService', () => {
       const result = await service.findAll(filters);
 
       // Assert
-      expect(mockNotificationRepository.findAll).toHaveBeenCalledWith(
+      expect(mockDataAccess.findAll).toHaveBeenCalledWith(
         {
           status: undefined,
           channel: undefined,
@@ -384,7 +422,7 @@ describe('NotificationService', () => {
       const filters = new NotificationFilterDto();
       filters.pagination = new Pagination(1, 500); // Exceeds max page size
 
-      mockNotificationRepository.findAll.mockResolvedValue({
+      mockDataAccess.findAll.mockResolvedValue({
         data: [],
         total: 0,
         page: 1,
@@ -396,7 +434,7 @@ describe('NotificationService', () => {
       await service.findAll(filters);
 
       // Assert
-      expect(mockNotificationRepository.findAll).toHaveBeenCalledWith(
+      expect(mockDataAccess.findAll).toHaveBeenCalledWith(
         expect.any(Object),
         { page: 1, limit: 100 },
       );
@@ -409,7 +447,7 @@ describe('NotificationService', () => {
       filters.channel = NotificationChannel.EMAIL;
       filters.recipient = 'test@example.com';
 
-      mockNotificationRepository.findAll.mockResolvedValue({
+      mockDataAccess.findAll.mockResolvedValue({
         data: [],
         total: 0,
         page: 1,
@@ -423,7 +461,7 @@ describe('NotificationService', () => {
       await service.findAll(filters);
 
       // Assert
-      expect(mockNotificationRepository.findAll).toHaveBeenCalledWith(
+      expect(mockDataAccess.findAll).toHaveBeenCalledWith(
         {
           status: NotificationStatus.SENT,
           channel: NotificationChannel.EMAIL,
@@ -453,7 +491,7 @@ describe('NotificationService', () => {
         content: updateDto.content,
       });
 
-      mockNotificationRepository.findById.mockResolvedValue(
+      mockDataAccess.findById.mockResolvedValue(
         existingNotification,
       );
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
@@ -481,7 +519,7 @@ describe('NotificationService', () => {
       // Arrange
       const notificationId = 'non-existent-id';
       const updateDto = new UpdateNotificationDto();
-      mockNotificationRepository.findById.mockResolvedValue(null);
+      mockDataAccess.findById.mockResolvedValue(null);
 
       // Act & Assert
       await TestAssertions.assertThrowsError(
@@ -500,7 +538,7 @@ describe('NotificationService', () => {
         { id: notificationId },
       );
 
-      mockNotificationRepository.findById.mockResolvedValue(sentNotification);
+      mockDataAccess.findById.mockResolvedValue(sentNotification);
 
       // Act & Assert
       await TestAssertions.assertThrowsError(
@@ -527,7 +565,7 @@ describe('NotificationService', () => {
         content: updateDto.content,
       });
 
-      mockNotificationRepository.findById.mockResolvedValue(
+      mockDataAccess.findById.mockResolvedValue(
         existingNotification,
       );
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
@@ -565,7 +603,7 @@ describe('NotificationService', () => {
         scheduledFor: newSchedule,
       });
 
-      mockNotificationRepository.findById.mockResolvedValue(
+      mockDataAccess.findById.mockResolvedValue(
         existingNotification,
       );
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
@@ -600,11 +638,11 @@ describe('NotificationService', () => {
       });
 
       // Mock the entity method
-      notification.markAsCancelled = jest.fn().mockImplementation(() => {
+      notification.markAsCancelled = vi.fn().mockImplementation(() => {
         notification.status = NotificationStatus.CANCELLED;
       });
 
-      mockNotificationRepository.findById.mockResolvedValue(notification);
+      mockDataAccess.findById.mockResolvedValue(notification);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
       mockNotificationProducer.removeNotificationJob.mockResolvedValue(true);
 
@@ -630,7 +668,7 @@ describe('NotificationService', () => {
     it('should throw NotFoundException when notification not found', async () => {
       // Arrange
       const notificationId = 'non-existent-id';
-      mockNotificationRepository.findById.mockResolvedValue(null);
+      mockDataAccess.findById.mockResolvedValue(null);
 
       // Act & Assert
       await TestAssertions.assertThrowsError(
@@ -648,11 +686,11 @@ describe('NotificationService', () => {
         { id: notificationId },
       );
 
-      notification.markAsCancelled = jest.fn().mockImplementation(() => {
+      notification.markAsCancelled = vi.fn().mockImplementation(() => {
         throw new Error('Cannot cancel sent notification');
       });
 
-      mockNotificationRepository.findById.mockResolvedValue(notification);
+      mockDataAccess.findById.mockResolvedValue(notification);
 
       // Act & Assert
       await TestAssertions.assertThrowsError(
@@ -672,9 +710,9 @@ describe('NotificationService', () => {
         { id: notificationId, retryCount: 1 },
       );
 
-      failedNotification.canRetry = jest.fn().mockReturnValue(true);
+      failedNotification.canRetry = vi.fn().mockReturnValue(true);
 
-      mockNotificationRepository.findById.mockResolvedValue(failedNotification);
+      mockDataAccess.findById.mockResolvedValue(failedNotification);
       mockNotificationRepository.update.mockResolvedValue(failedNotification);
       mockNotificationProducer.addNotificationJob.mockResolvedValue('job-123');
       mockNotificationRepository.updateStatus.mockResolvedValue(undefined);
@@ -711,7 +749,7 @@ describe('NotificationService', () => {
     it('should throw NotFoundException when notification not found', async () => {
       // Arrange
       const notificationId = 'non-existent-id';
-      mockNotificationRepository.findById.mockResolvedValue(null);
+      mockDataAccess.findById.mockResolvedValue(null);
 
       // Act & Assert
       await TestAssertions.assertThrowsError(
@@ -730,8 +768,8 @@ describe('NotificationService', () => {
         retryCount: 3,
       });
 
-      notification.canRetry = jest.fn().mockReturnValue(false);
-      mockNotificationRepository.findById.mockResolvedValue(notification);
+      notification.canRetry = vi.fn().mockReturnValue(false);
+      mockDataAccess.findById.mockResolvedValue(notification);
 
       // Act & Assert
       await TestAssertions.assertThrowsError(
@@ -764,7 +802,7 @@ describe('NotificationService', () => {
         }),
       );
 
-      mockNotificationRepository.getStatusCounts.mockResolvedValue(
+      mockDataAccess.getStats.mockResolvedValue(
         statusCounts,
       );
       mockNotificationRepository.getRecentFailures.mockResolvedValue(
@@ -775,7 +813,7 @@ describe('NotificationService', () => {
       const result = await service.getStats();
 
       // Assert
-      expect(mockNotificationRepository.getStatusCounts).toHaveBeenCalled();
+      expect(mockDataAccess.getStats).toHaveBeenCalled();
       expect(mockNotificationRepository.getRecentFailures).toHaveBeenCalledWith(
         mockConfig.recentFailuresWindowMinutes,
         mockConfig.maxRecentFailuresDisplay,

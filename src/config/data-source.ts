@@ -10,14 +10,14 @@ export const AppDataSource = new DataSource({
     process.env.DATABASE_URL ||
     'postgresql://notifyhub_user:notifyhub_password@localhost:5432/notifyhub',
   entities: [
-    process.env.NODE_ENV === 'production' 
+    process.env.NODE_ENV === 'production'
       ? 'dist/**/*.entity.js'
-      : 'src/**/*.entity.ts'
+      : 'src/**/*.entity.ts',
   ],
   migrations: [
     process.env.NODE_ENV === 'production'
       ? 'dist/migrations/*.js'
-      : 'src/migrations/*.ts'
+      : 'src/migrations/*.ts',
   ],
   migrationsTableName: 'migrations',
   synchronize: false,
