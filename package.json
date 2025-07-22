@@ -28,13 +28,19 @@
     "test:all": "npm run test:unit && npm run test:e2e",
     "test:all:coverage": "npm run test:coverage && npm run test:e2e",
     "test:ci": "npm run test:coverage:ci && npm run test:e2e",
-    "test:clear-cache": "jest --clearCache"
+    "test:clear-cache": "jest --clearCache",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/config/data-source.ts",
+    "migration:create": "typeorm-ts-node-commonjs migration:create",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/config/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/config/data-source.ts",
+    "migration:show": "typeorm-ts-node-commonjs migration:show -d src/config/data-source.ts"
   },
   "dependencies": {
     "@nestjs/bull": "^11.0.2",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
+    "@nestjs/event-emitter": "^3.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/throttler": "^6.4.0",
@@ -44,6 +50,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.0",
     "email-validator": "^2.0.4",
     "handlebars": "^4.7.8",
     "ioredis": "^5.6.1",

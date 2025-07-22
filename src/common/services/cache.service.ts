@@ -383,7 +383,7 @@ export class CacheService implements OnModuleDestroy {
         ? parseInt(connectionsInfo.split(':')[1])
         : 0;
 
-      let status: string;
+      let status: 'healthy' | 'degraded' | 'down';
       if (latency < 100) {
         status = 'healthy';
       } else if (latency < 500) {

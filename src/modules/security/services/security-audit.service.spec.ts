@@ -47,6 +47,11 @@ describe('SecurityAuditService - Security Tests', () => {
     service = module.get<SecurityAuditService>(SecurityAuditService);
     auditRepository = module.get(getRepositoryToken(SecurityAuditLog));
     logger = module.get(Logger);
+
+    // Spy on the actual logger instance used by the service
+    jest.spyOn(service['logger'], 'log').mockImplementation();
+    jest.spyOn(service['logger'], 'error').mockImplementation();
+    jest.spyOn(service['logger'], 'warn').mockImplementation();
   });
 
   describe('Security Event Logging', () => {
@@ -127,7 +132,7 @@ describe('SecurityAuditService - Security Tests', () => {
       await service.logSecurityEvent(eventData);
 
       // Assert
-      expect(logger.log).toHaveBeenCalledWith(
+      expect(service['logger'].log).toHaveBeenCalledWith(
         'Security Event: RATE_LIMIT_EXCEEDED - Rate limit exceeded',
         {
           eventType: SecurityEventType.RATE_LIMIT_EXCEEDED,
@@ -153,7 +158,7 @@ describe('SecurityAuditService - Security Tests', () => {
       await expect(service.logSecurityEvent(eventData)).resolves.not.toThrow();
 
       // Should log the error
-      expect(logger.error).toHaveBeenCalledWith(
+      expect(service['logger'].error).toHaveBeenCalledWith(
         'Failed to log security event - this is a critical security issue',
         {
           error: 'Database connection failed',
@@ -667,7 +672,7 @@ describe('SecurityAuditService - Security Tests', () => {
       await service.logSecurityEvent(criticalEvent);
 
       // Assert - Error should be logged but not thrown
-      expect(logger.error).toHaveBeenCalledWith(
+      expect(service['logger'].error).toHaveBeenCalledWith(
         'Failed to log security event - this is a critical security issue',
         {
           error: 'Database error',
@@ -781,10 +786,10 @@ describe('SecurityAuditService - Security Tests', () => {
       }
 
       // Assert - All high severity events should be logged to application logger
-      expect(logger.log).toHaveBeenCalledTimes(3);
+      expect(service['logger'].log).toHaveBeenCalledTimes(3);
 
       highSeverityEvents.forEach((eventType, index) => {
-        expect(logger.log).toHaveBeenNthCalledWith(
+        expect(service['logger'].log).toHaveBeenNthCalledWith(
           index + 1,
           `Security Event: ${eventType} - High severity event: ${eventType}`,
           expect.objectContaining({

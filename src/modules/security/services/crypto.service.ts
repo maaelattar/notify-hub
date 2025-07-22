@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 
 @Injectable()
 export class CryptoService {
+  private readonly logger = new Logger(CryptoService.name);
   private readonly SALT_LENGTH = 32;
   private readonly KEY_LENGTH = 32;
 

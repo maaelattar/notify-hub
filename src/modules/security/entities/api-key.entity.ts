@@ -19,10 +19,10 @@ export class ApiKey {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true, length: 64 })
+  @Column({ type: 'varchar', unique: true, length: 64 })
   hashedKey: string; // SHA-256 hash of the actual key
 
-  @Column({ length: 100 })
+  @Column({ type: 'varchar', length: 100 })
   name: string; // Human-readable name/description
 
   @Column('simple-array')
@@ -34,16 +34,16 @@ export class ApiKey {
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastUsedAt: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   expiresAt: Date | null;
 
-  @Column({ length: 36, nullable: true })
+  @Column({ type: 'varchar', length: 36, nullable: true })
   organizationId: string | null; // For multi-tenant support
 
-  @Column({ length: 36, nullable: true })
+  @Column({ type: 'varchar', length: 36, nullable: true })
   createdByUserId: string | null;
 
   @CreateDateColumn()

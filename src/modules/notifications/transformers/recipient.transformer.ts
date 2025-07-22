@@ -52,10 +52,13 @@ export class RecipientTransformer implements ValueTransformer {
     } catch (parseError) {
       // Not JSON, treat as legacy raw value
       this.logger.debug('Failed to parse JSON, treating as legacy format', {
-        error: parseError instanceof Error ? parseError.message : 'Unknown parse error',
+        error:
+          parseError instanceof Error
+            ? parseError.message
+            : 'Unknown parse error',
         valuePreview: databaseValue.substring(0, 50),
       });
-      
+
       try {
         return this.createFromLegacyFormat(databaseValue);
       } catch (error) {

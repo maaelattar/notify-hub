@@ -3,6 +3,7 @@ import {
   FindOptionsWhere,
   EntityTarget,
   DataSource,
+  ObjectLiteral,
 } from 'typeorm';
 import { Injectable } from '@nestjs/common';
 
@@ -31,7 +32,7 @@ export interface SortOptions {
  * and standardized pagination logic to reduce code duplication
  */
 @Injectable()
-export abstract class BaseRepository<T> {
+export abstract class BaseRepository<T extends ObjectLiteral> {
   protected repository: Repository<T>;
 
   constructor(
@@ -45,15 +46,15 @@ export abstract class BaseRepository<T> {
    * Create a new entity
    */
   async create(entityData: Partial<T>): Promise<T> {
-    const entity = this.repository.create(entityData);
-    return this.repository.save(entity);
+    const entity = this.repository.create(entityData as any);
+    return this.repository.save(entity) as unknown as Promise<T>;
   }
 
   /**
    * Find entity by ID
    */
   async findById(id: string): Promise<T | null> {
-    return this.repository.findOne({ where: { id } as FindOptionsWhere<T> });
+    return this.repository.findOne({ where: { id } as any });
   }
 
   /**
@@ -83,12 +84,9 @@ export abstract class BaseRepository<T> {
    * Update entity by ID
    */
   async updateById(id: string, updates: Partial<T>): Promise<T | null> {
-    const result = await this.repository.update(
-      { id } as FindOptionsWhere<T>,
-      updates as any,
-    );
+    const result = await this.repository.update({ id } as any, updates as any);
 
-    if (result.affected === 0) {
+    if (!result.affected || result.affected === 0) {
       return null;
     }
 
@@ -99,8 +97,12 @@ export abstract class BaseRepository<T> {
    * Delete entity by ID
    */
   async deleteById(id: string): Promise<boolean> {
-    const result = await this.repository.delete({ id } as FindOptionsWhere<T>);
-    return result.affected !== undefined && result.affected > 0;
+    const result = await this.repository.delete({ id } as any);
+    return (
+      result.affected !== null &&
+      result.affected !== undefined &&
+      result.affected > 0
+    );
   }
 
   /**
@@ -115,7 +117,7 @@ export abstract class BaseRepository<T> {
    */
   async exists(id: string): Promise<boolean> {
     const count = await this.repository.count({
-      where: { id } as FindOptionsWhere<T>,
+      where: { id } as any,
     });
     return count > 0;
   }

@@ -39,6 +39,15 @@ export interface BaseNotificationMetadata {
     utmTerm?: string;
     utmContent?: string;
   };
+
+  /** Test notification flag for debugging */
+  test?: boolean;
+
+  /** Timestamp for debugging purposes */
+  timestamp?: string;
+
+  /** Allow additional custom properties */
+  [key: string]: any;
 }
 
 export interface EmailNotificationMetadata extends BaseNotificationMetadata {

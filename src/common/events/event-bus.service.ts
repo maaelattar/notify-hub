@@ -232,7 +232,7 @@ export class EventBusService
     try {
       // Get all providers from the module container
       const providers = (
-        this.moduleRef as ModuleRefContainer
+        this.moduleRef as unknown as ModuleRefContainer
       ).container.getModules();
       let handlersRegistered = 0;
 

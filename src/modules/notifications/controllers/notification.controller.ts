@@ -354,6 +354,7 @@ export class NotificationController {
         100,
       recentFailureCount: stats.recentFailureCount,
       recentFailures: stats.recentFailures,
+      pendingNotifications: stats.pendingNotifications || [],
     };
   }
 

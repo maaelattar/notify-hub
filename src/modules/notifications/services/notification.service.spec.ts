@@ -348,6 +348,8 @@ describe('NotificationService', () => {
         page: 1,
         limit: 20,
         totalPages: 2,
+        hasNext: true,
+        hasPrevious: false,
       });
 
       // Act
@@ -413,6 +415,8 @@ describe('NotificationService', () => {
         page: 1,
         limit: 20,
         totalPages: 0,
+        hasNext: false,
+        hasPrevious: false,
       });
 
       // Act

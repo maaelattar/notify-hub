@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 // Health Services
 import { AdvancedHealthService } from './health/advanced-health.service';
 import { QueueHealthIndicator } from './health/queue-health.indicator';
+import { HealthController } from './health/health.controller';
 
 // Performance Services
 import { PerformanceMonitorService } from './performance/performance-monitor.service';
@@ -44,6 +45,7 @@ import { CacheService } from '../../common/services/cache.service';
     // Note: TypeOrmModule is imported to access DataSource for health checks
     TypeOrmModule.forFeature([]),
   ],
+  controllers: [HealthController],
   providers: [
     // Core monitoring services
     AdvancedHealthService,

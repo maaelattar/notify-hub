@@ -15,10 +15,7 @@ import { CorrelationIdMiddleware } from '../src/modules/security/middleware/corr
 import { LoggingInterceptor } from '../src/common/interceptors/logging.interceptor';
 import { ApiVersionInterceptor } from '../src/common/interceptors/api-version.interceptor';
 
-import {
-  TestEnvironment,
-  TestDateUtils,
-} from '../src/test/test-utils';
+import { TestEnvironment, TestDateUtils } from '../src/test/test-utils';
 
 describe('Notifications (E2E)', () => {
   let app: INestApplication;
@@ -215,6 +212,7 @@ describe('Notifications (E2E)', () => {
 
   describe('GET /notifications', () => {
     // Track created notifications for cleanup
+    const createdNotificationIds: string[] = [];
 
     beforeAll(async () => {
       // Create test notifications

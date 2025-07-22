@@ -3,10 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { Notification } from '../entities/notification.entity';
 import { NotificationStatus } from '../enums/notification-status.enum';
-import { NotificationFilters } from '../dto/notification-filter.dto';
+import { NotificationFilterDto } from '../dto/notification-filter.dto';
 import { PaginatedResponseDto } from '../dto/paginated-response.dto';
 import { NotificationStatsDto } from '../dto/notification-stats.dto';
 import { PaginationOptions } from '../../../common/repositories/base.repository';
+import { Pagination } from '../../../common/value-objects/pagination.vo';
 import { NotificationConfiguration } from '../../../common/types/notification.types';
 
 /**
@@ -58,7 +59,7 @@ export class NotificationDataAccessService {
    * Find all notifications with filters and pagination
    */
   async findAll(
-    filters: NotificationFilters = {},
+    filters: NotificationFilterDto = {},
     pagination: PaginationOptions = {
       page: 1,
       limit: this.config.defaultPageSize,
@@ -77,8 +78,7 @@ export class NotificationDataAccessService {
     return PaginatedResponseDto.create(
       result.data,
       result.total,
-      result.page,
-      result.limit,
+      new Pagination(result.page, result.limit),
     );
   }
 
@@ -149,14 +149,19 @@ export class NotificationDataAccessService {
           this.config.recentFailuresWindowMinutes,
           this.config.maxRecentFailuresDisplay,
         ),
-        this.notificationRepository.getPendingNotifications(
+        this.notificationRepository.findPendingNotifications(
           this.config.pendingNotificationsBatchSize,
         ),
       ]);
 
     const stats = new NotificationStatsDto();
     stats.statusCounts = statusCounts;
-    stats.recentFailures = recentFailures;
+    stats.recentFailures = recentFailures.map((notification) => ({
+      id: notification.id,
+      channel: notification.channel,
+      error: notification.lastError,
+      failedAt: notification.updatedAt,
+    }));
     stats.pendingNotifications = pendingNotifications;
 
     this.logger.debug('Generated notification statistics', {
@@ -182,7 +187,7 @@ export class NotificationDataAccessService {
       pagination,
     });
 
-    const filters: NotificationFilters = { status };
+    const filters: NotificationFilterDto = { status };
     return this.findAll(filters, pagination);
   }
 
@@ -200,7 +205,7 @@ export class NotificationDataAccessService {
       pagination,
     });
 
-    const filters: NotificationFilters = { channel: channel as any };
+    const filters: NotificationFilterDto = { channel: channel as any };
     return this.findAll(filters, pagination);
   }
 
@@ -210,8 +215,8 @@ export class NotificationDataAccessService {
   async findScheduledReady(): Promise<Notification[]> {
     this.logger.debug('Finding scheduled notifications ready for sending');
 
-    const filters: NotificationFilters = {
-      scheduledBefore: new Date(),
+    const filters: NotificationFilterDto = {
+      toDate: new Date().toISOString(),
       status: NotificationStatus.QUEUED,
     };
 
@@ -260,7 +265,7 @@ export class NotificationDataAccessService {
   /**
    * Bulk update status for multiple notifications
    */
-  async bulkUpdateStatus(
+  async updateMultipleStatus(
     ids: string[],
     status: NotificationStatus,
   ): Promise<number> {
@@ -273,12 +278,7 @@ export class NotificationDataAccessService {
       return 0;
     }
 
-    // Use repository bulk update if available, otherwise update individually
-    if (this.notificationRepository.bulkUpdateStatus) {
-      return this.notificationRepository.bulkUpdateStatus(ids, status);
-    }
-
-    // Fallback: individual updates
+    // Update individually since bulk update is not available
     let updatedCount = 0;
     for (const id of ids) {
       try {
@@ -310,9 +310,9 @@ export class NotificationDataAccessService {
       endDate: endDate.toISOString(),
     });
 
-    const filters: NotificationFilters = {
-      createdAfter: startDate,
-      createdBefore: endDate,
+    const filters: NotificationFilterDto = {
+      fromDate: startDate.toISOString(),
+      toDate: endDate.toISOString(),
     };
 
     const notifications = await this.notificationRepository.findAll(filters, {
@@ -342,7 +342,7 @@ export class NotificationDataAccessService {
   /**
    * Sanitize filters for logging (remove sensitive data)
    */
-  private sanitizeFilters(filters: NotificationFilters): Record<string, any> {
+  private sanitizeFilters(filters: NotificationFilterDto): Record<string, any> {
     const sanitized: Record<string, any> = { ...filters };
 
     if (sanitized.recipient) {

@@ -133,7 +133,7 @@ export class NotificationContent {
           error: error instanceof Error ? error.message : 'Unknown error',
           contentPreview: content.substring(0, 50),
         });
-        
+
         throw new InvalidContentError(
           'Invalid JSON format',
           'INVALID_JSON_FORMAT',
@@ -601,6 +601,9 @@ export class NotificationContent {
 
   private static containsSuspiciousHtml(content: string): boolean {
     // Reuse the existing containsMaliciousContent method for consistency
-    return new NotificationContent('', { format: ContentFormat.TEXT, encoding: 'utf-8' }).containsMaliciousContent(content);
+    return new NotificationContent('', {
+      format: ContentFormat.TEXT,
+      encoding: 'utf-8',
+    }).containsMaliciousContent(content);
   }
 }

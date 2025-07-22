@@ -13,7 +13,8 @@ import {
 @Injectable()
 export class ChannelRouter implements OnModuleInit {
   private readonly logger = new Logger(ChannelRouter.name);
-  private readonly channels: Map<NotificationChannel, INotificationChannel> = new Map();
+  private readonly channels: Map<NotificationChannel, INotificationChannel> =
+    new Map();
 
   constructor(
     private readonly moduleRef: ModuleRef,

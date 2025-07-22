@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { CacheService } from '../../../common/services/cache.service';
@@ -54,7 +54,7 @@ export class AdvancedHealthService {
     private readonly dataSource: DataSource,
     private readonly cacheService: CacheService,
     private readonly metricsService: RedisMetricsService,
-    private readonly eventBus: EventBusService,
+    @Optional() private readonly eventBus: EventBusService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -199,7 +199,7 @@ export class AdvancedHealthService {
       const writeLatency = Date.now() - writeStart;
 
       // Get connection pool status
-      const poolStatus = this.dataSource.driver.master;
+      const poolStatus = this.dataSource.isConnected;
 
       const duration = Date.now() - startTime;
 
@@ -217,7 +217,7 @@ export class AdvancedHealthService {
         details: {
           writeLatency,
           isConnected: this.dataSource.isInitialized,
-          poolSize: poolStatus?.options?.connectionLimit ?? 'unknown',
+          poolConnected: poolStatus,
         },
       };
     } catch (error) {
@@ -332,6 +332,15 @@ export class AdvancedHealthService {
     const startTime = Date.now();
 
     try {
+      if (!this.eventBus) {
+        return {
+          status: 'degraded',
+          timestamp: new Date(),
+          duration: Date.now() - startTime,
+          details: { message: 'EventBus service not available' },
+        };
+      }
+
       const eventStats = this.eventBus.getEventStats();
       const duration = Date.now() - startTime;
 
@@ -372,6 +381,7 @@ export class AdvancedHealthService {
       // Check external service endpoints (example)
       const dependencyChecks = await Promise.allSettled([
         // Add your external service checks here
+        Promise.resolve(true), // Placeholder check - always succeeds
         // this.checkEmailService(),
         // this.checkSmsService(),
         // this.checkWebhookService(),
@@ -381,7 +391,7 @@ export class AdvancedHealthService {
 
       // Determine status based on dependency results
       const failedChecks = dependencyChecks.filter(
-        (result) => result.status === 'rejected',
+        (result: PromiseSettledResult<any>) => result.status === 'rejected',
       ).length;
       const totalChecks = dependencyChecks.length;
 
@@ -529,7 +539,7 @@ export class AdvancedHealthService {
       this.logger.error('Simple health check failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       return {
         status: 'down',
         timestamp: new Date(),

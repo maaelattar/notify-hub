@@ -472,4 +472,74 @@ export class RedisMetricsService {
       };
     }
   }
+
+  /**
+   * Record a generic metric value
+   */
+  async recordValue(
+    metricName: string,
+    value: number,
+    tags?: Record<string, string>,
+  ): Promise<void> {
+    try {
+      const hourKey = format(startOfHour(new Date()), 'yyyy-MM-dd-HH');
+      const key = `${this.METRICS_PREFIX}:${metricName}:${hourKey}`;
+
+      await this.redisProvider.getClient().hincrby(key, 'value', value);
+      await this.redisProvider
+        .getClient()
+        .expire(key, APP_CONSTANTS.REDIS.METRICS_TTL_SECONDS);
+
+      if (tags) {
+        const tagKey = `${key}:tags`;
+        await this.redisProvider.getClient().hmset(tagKey, tags);
+        await this.redisProvider
+          .getClient()
+          .expire(tagKey, APP_CONSTANTS.REDIS.METRICS_TTL_SECONDS);
+      }
+    } catch (error) {
+      this.logger.error('Failed to record metric value', {
+        metricName,
+        value,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Set cache value with expiration
+   */
+  async setCache(
+    key: string,
+    value: any,
+    ttlSeconds: number = 3600,
+  ): Promise<void> {
+    try {
+      const client = this.redisProvider.getClient();
+      await client.setex(key, ttlSeconds, JSON.stringify(value));
+    } catch (error) {
+      this.logger.error('Failed to set cache value', {
+        key,
+        ttlSeconds,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Get cache value
+   */
+  async getCache(key: string): Promise<any> {
+    try {
+      const client = this.redisProvider.getClient();
+      const value = await client.get(key);
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      this.logger.error('Failed to get cache value', {
+        key,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return null;
+    }
+  }
 }

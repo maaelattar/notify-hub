@@ -10,6 +10,7 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationStatus } from '../enums/notification-status.enum';
+import { NotificationPriority } from '../enums/notification-priority.enum';
 import { Notification } from '../entities/notification.entity';
 import { NotificationConfig } from '../config/notification.config';
 import { NotificationJobData } from '../services/notification.producer';
@@ -35,6 +36,7 @@ export class NotificationProcessor {
   async handleNotification(job: Job<NotificationJobData>) {
     const startTime = Date.now();
     const { notificationId, priority, attempt = 1 } = job.data;
+    const typedPriority: NotificationPriority = priority;
 
     // Validate job data
     if (!this.validateJobData(job.data)) {
@@ -89,7 +91,7 @@ export class NotificationProcessor {
           notification,
           result,
           notificationId,
-          priority,
+          typedPriority,
           attempt,
           startTime,
         );
@@ -102,7 +104,7 @@ export class NotificationProcessor {
         notification,
         notificationId,
         attempt,
-        priority,
+        typedPriority,
         job,
       );
       throw error;
@@ -113,7 +115,7 @@ export class NotificationProcessor {
     notification: Notification,
     result: ChannelResult,
     notificationId: string,
-    priority: string,
+    priority: NotificationPriority,
     attempt: number,
     startTime: number,
   ) {
@@ -157,10 +159,11 @@ export class NotificationProcessor {
     notification: Notification | null,
     notificationId: string,
     attempt: number,
-    priority: string,
+    priority: NotificationPriority,
     job: Job<NotificationJobData>,
   ) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     this.logger.error(
       `Failed to process notification ${notificationId}`,
       error instanceof Error ? error.stack : error,
@@ -205,7 +208,9 @@ export class NotificationProcessor {
     job: Job<NotificationJobData>,
     result: { processingTime?: number },
   ) {
-    const timingInfo = result.processingTime ? `in ${result.processingTime}ms` : '';
+    const timingInfo = result.processingTime
+      ? `in ${result.processingTime}ms`
+      : '';
     this.logger.log(
       `Job ${job.id} completed: ${job.data.notificationId} ${timingInfo}`,
     );
@@ -219,9 +224,11 @@ export class NotificationProcessor {
     );
 
     // Additional error handling - fire and forget
-    this.handleJobFailure(job, error).catch((err) => {
+    try {
+      this.handleJobFailure(job, error);
+    } catch (err) {
       this.logger.error('Failed to handle job failure', err);
-    });
+    }
   }
 
   /**

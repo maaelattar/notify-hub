@@ -11,6 +11,7 @@ import { NotificationBusinessLogicService } from './notification-business-logic.
 import { NotificationDataAccessService } from './notification-data-access.service';
 import { NotificationOrchestrationService } from './notification-orchestration.service';
 import { PaginationOptions } from '../../../common/repositories/base.repository';
+import { Pagination } from '../../../common/value-objects/pagination.vo';
 
 /**
  * Refactored NotificationService - now focused on coordination and orchestration
@@ -99,8 +100,7 @@ export class NotificationService {
     return PaginatedResponseDto.create(
       responseData,
       result.total,
-      result.page,
-      result.limit,
+      new Pagination(result.page, result.limit),
     );
   }
 
@@ -262,8 +262,7 @@ export class NotificationService {
     return PaginatedResponseDto.create(
       responseData,
       result.total,
-      result.page,
-      result.limit,
+      new Pagination(result.page, result.limit),
     );
   }
 
@@ -288,8 +287,7 @@ export class NotificationService {
     return PaginatedResponseDto.create(
       responseData,
       result.total,
-      result.page,
-      result.limit,
+      new Pagination(result.page, result.limit),
     );
   }
 
@@ -340,7 +338,10 @@ export class NotificationService {
     });
 
     try {
-      const updatedCount = await this.dataAccess.bulkUpdateStatus(ids, status);
+      const updatedCount = await this.dataAccess.updateMultipleStatus(
+        ids,
+        status,
+      );
 
       const failed =
         ids.length - updatedCount > 0 ? ids.slice(updatedCount) : [];

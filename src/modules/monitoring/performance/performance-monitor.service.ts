@@ -3,6 +3,7 @@ import {
   Logger,
   OnModuleInit,
   OnModuleDestroy,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CacheService } from '../../../common/services/cache.service';
@@ -52,7 +53,7 @@ export class PerformanceMonitorService
   constructor(
     private readonly configService: ConfigService,
     private readonly cacheService: CacheService,
-    private readonly eventBus: EventBusService,
+    @Optional() private readonly eventBus: EventBusService,
   ) {
     this.maxMetricsHistory = this.configService.get<number>(
       'PERFORMANCE_MAX_HISTORY',

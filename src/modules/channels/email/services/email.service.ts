@@ -17,7 +17,8 @@ import { Notification } from '../../../notifications/entities/notification.entit
 export class EmailService implements EmailProvider, OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
-  private readonly templates: Map<string, handlebars.TemplateDelegate> = new Map();
+  private readonly templates: Map<string, handlebars.TemplateDelegate> =
+    new Map();
   private isEthereal = false;
 
   constructor(private readonly configService: ConfigService) {}
@@ -191,7 +192,8 @@ export class EmailService implements EmailProvider, OnModuleInit {
 
       // Add preview URL for Ethereal
       if (this.isEthereal) {
-        result.previewUrl = nodemailer.getTestMessageUrl(info) ?? undefined;
+        const previewUrl = nodemailer.getTestMessageUrl(info);
+        result.previewUrl = previewUrl || undefined;
         this.logger.log(`Preview email at: ${result.previewUrl}`);
       }
 

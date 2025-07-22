@@ -15,11 +15,24 @@ export interface AppConfig {
   environment: string;
   corsOrigins: string[];
   apiPrefix: string;
+  baseUrl: string;
+}
+
+export interface RedisConfig {
+  host: string;
+  port: number;
+  password?: string;
+}
+
+export interface SecurityConfig {
+  jwtSecret: string;
 }
 
 export interface Config {
   app: AppConfig;
   database: DatabaseConfig;
+  redis: RedisConfig;
+  security: SecurityConfig;
 }
 
 // Interface for validated environment variables
@@ -27,6 +40,12 @@ export interface ValidatedEnv {
   NODE_ENV: 'development' | 'staging' | 'production' | 'test';
   PORT: number;
   DATABASE_URL: string;
+  REDIS_HOST: string;
+  REDIS_PORT: number;
+  REDIS_PASSWORD?: string;
+  CORS_ORIGIN?: string;
+  JWT_SECRET: string;
+  API_BASE_URL: string;
 }
 
 // Clean Joi schema
@@ -36,6 +55,20 @@ const configSchema = Joi.object({
     .default('development'),
   PORT: Joi.number().port().default(3000),
   DATABASE_URL: Joi.string().uri().required(),
+
+  // Redis configuration
+  REDIS_HOST: Joi.string().hostname().default('localhost'),
+  REDIS_PORT: Joi.number().port().default(6379),
+  REDIS_PASSWORD: Joi.string().optional().allow(''),
+
+  // CORS configuration
+  CORS_ORIGIN: Joi.string().optional().allow(''),
+
+  // Security configuration
+  JWT_SECRET: Joi.string().min(32).required(),
+
+  // API configuration
+  API_BASE_URL: Joi.string().uri().default('http://localhost:3000'),
 });
 
 // Simple validation function
@@ -68,7 +101,7 @@ function createDatabaseConfig(env: ValidatedEnv): DatabaseConfig {
 }
 
 function createAppConfig(env: ValidatedEnv): AppConfig {
-  const corsOrigins = getCorsOrigins(env.NODE_ENV);
+  const corsOrigins = getCorsOrigins(env.NODE_ENV, env.CORS_ORIGIN);
 
   return {
     name: 'NotifyHub API',
@@ -77,10 +110,31 @@ function createAppConfig(env: ValidatedEnv): AppConfig {
     environment: env.NODE_ENV,
     corsOrigins,
     apiPrefix: 'api/v1',
+    baseUrl: env.API_BASE_URL,
   };
 }
 
-function getCorsOrigins(environment: string): string[] {
+function createRedisConfig(env: ValidatedEnv): RedisConfig {
+  return {
+    host: env.REDIS_HOST,
+    port: env.REDIS_PORT,
+    password: env.REDIS_PASSWORD || undefined,
+  };
+}
+
+function createSecurityConfig(env: ValidatedEnv): SecurityConfig {
+  return {
+    jwtSecret: env.JWT_SECRET,
+  };
+}
+
+function getCorsOrigins(environment: string, corsOrigin?: string): string[] {
+  // If CORS_ORIGIN is explicitly set, use it
+  if (corsOrigin) {
+    return corsOrigin.split(',').map((origin) => origin.trim());
+  }
+
+  // Default origins based on environment
   switch (environment) {
     case 'production':
       return ['https://notifyhub.app'];
@@ -100,4 +154,14 @@ export const appConfig = registerAs('app', () => {
 export const databaseConfig = registerAs('database', () => {
   const validatedEnv = validateConfig(process.env);
   return createDatabaseConfig(validatedEnv);
+});
+
+export const redisConfig = registerAs('redis', () => {
+  const validatedEnv = validateConfig(process.env);
+  return createRedisConfig(validatedEnv);
+});
+
+export const securityConfig = registerAs('security', () => {
+  const validatedEnv = validateConfig(process.env);
+  return createSecurityConfig(validatedEnv);
 });

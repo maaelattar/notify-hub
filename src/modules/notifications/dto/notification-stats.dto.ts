@@ -48,4 +48,11 @@ export class NotificationStatsDto {
     error: string | null;
     failedAt: Date;
   }>;
+
+  @ApiProperty({
+    example: [],
+    description: 'Pending notifications for processing',
+    isArray: true,
+  })
+  pendingNotifications: any[];
 }

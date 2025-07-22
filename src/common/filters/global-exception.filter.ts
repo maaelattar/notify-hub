@@ -50,7 +50,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     // Add actionable guidance using factory
-    const guidance = this.errorGuidanceFactory.createGuidance(errorInfo.code, errorInfo.status);
+    const guidance = this.errorGuidanceFactory.createGuidance(
+      errorInfo.code,
+      errorInfo.status,
+    );
     if (guidance) {
       errorResponse.guidance = guidance.toJSON();
     }

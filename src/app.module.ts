@@ -43,6 +43,7 @@ import { APP_CONSTANTS } from './common/constants/app.constants';
           synchronize: dbConfig.synchronize,
           logging: dbConfig.logging,
           migrations: ['dist/migrations/*.js'],
+          migrationsTableName: 'migrations',
           migrationsRun: false, // We'll run manually on startup
         };
       },

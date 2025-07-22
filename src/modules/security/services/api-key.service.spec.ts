@@ -1,10 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  ApiKeyService,
-  CreateApiKeyRequest,
-} from './api-key.service';
+import { ApiKeyService, CreateApiKeyRequest } from './api-key.service';
 import { ApiKey } from '../entities/api-key.entity';
 import { CryptoService } from './crypto.service';
 import { SecurityAuditService } from './security-audit.service';
@@ -561,8 +558,16 @@ describe('ApiKeyService - Security Tests', () => {
         ...timings.map((t) => Math.abs(t - avgTime)),
       );
 
-      // Allow for some variance but not too much (implementation-dependent)
-      expect(maxDeviation).toBeLessThan(avgTime * 2); // Max 200% deviation
+      // In test environment with mocks, timing may be very consistent
+      // We verify that timing attack protection is working by ensuring:
+      // 1. All requests complete successfully (no early exits)
+      // 2. If there is variance, it's within reasonable bounds
+      if (avgTime > 0) {
+        expect(maxDeviation).toBeLessThan(avgTime * 2); // Max 200% deviation
+      } else {
+        // In test environment, consistent timing (near-zero) is expected
+        expect(maxDeviation).toBeLessThanOrEqual(1); // Allow minimal deviation
+      }
     });
 
     it('should prevent brute force attacks by logging attempts', async () => {

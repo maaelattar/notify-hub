@@ -47,28 +47,28 @@ export class SecurityAuditLog {
   })
   eventType: SecurityEventType;
 
-  @Column({ length: 36, nullable: true })
+  @Column({ type: 'varchar', length: 36, nullable: true })
   apiKeyId: string | null;
 
-  @Column({ length: 64, nullable: true })
+  @Column({ type: 'varchar', length: 64, nullable: true })
   hashedKey: string | null; // For tracking invalid attempts
 
-  @Column({ length: 45, nullable: true }) // IPv6 compatible
+  @Column({ type: 'varchar', length: 45, nullable: true }) // IPv6 compatible
   ipAddress: string | null;
 
-  @Column({ length: 500, nullable: true })
+  @Column({ type: 'varchar', length: 500, nullable: true })
   userAgent: string | null;
 
-  @Column({ length: 36, nullable: true })
+  @Column({ type: 'varchar', length: 36, nullable: true })
   requestId: string | null;
 
-  @Column({ length: 36, nullable: true })
+  @Column({ type: 'varchar', length: 36, nullable: true })
   organizationId: string | null;
 
   @Column('json', { nullable: true })
   metadata: SecurityEventMetadata | null;
 
-  @Column({ length: 1000, nullable: true })
+  @Column({ type: 'varchar', length: 1000, nullable: true })
   message: string | null;
 
   @CreateDateColumn()
