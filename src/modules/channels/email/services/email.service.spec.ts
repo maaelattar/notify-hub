@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import * as fs from 'fs/promises';
@@ -16,13 +16,15 @@ vi.mock('email-validator');
 vi.mock('handlebars', () => ({
   compile: vi
     .fn()
-    .mockReturnValue((context: any) => `<h1>${context.content}</h1>`),
+    .mockReturnValue(
+      (context: { content: string }) => `<h1>${context.content}</h1>`,
+    ),
   registerHelper: vi.fn(),
 }));
 
-const mockNodemailer = nodemailer as typeof nodemailer;
-const mockFs = fs as typeof fs;
-const mockEmailValidator = EmailValidator as typeof EmailValidator;
+const mockNodemailer = nodemailer;
+const mockFs = fs;
+const mockEmailValidator = EmailValidator;
 
 describe('EmailService', () => {
   let service: EmailService;
@@ -47,7 +49,7 @@ describe('EmailService', () => {
     },
   } as const;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     // Create mock transporter
     mockTransporter = {
       sendMail: vi.fn(),
@@ -65,26 +67,40 @@ describe('EmailService', () => {
     } as unknown as ConfigService;
 
     // Mock nodemailer
-    mockNodemailer.createTransport.mockReturnValue(mockTransporter);
-    mockNodemailer.createTestAccount.mockResolvedValue({
+    (
+      mockNodemailer.createTransport as ReturnType<typeof vi.fn>
+    ).mockReturnValue(mockTransporter);
+    (
+      mockNodemailer.createTestAccount as ReturnType<typeof vi.fn>
+    ).mockResolvedValue({
       user: 'test@ethereal.email',
       pass: 'password',
       smtp: { host: 'smtp.ethereal.email', port: 587, secure: false },
     } as nodemailer.TestAccount);
-    mockNodemailer.getTestMessageUrl.mockReturnValue('http://preview.url');
+    (
+      mockNodemailer.getTestMessageUrl as ReturnType<typeof vi.fn>
+    ).mockReturnValue('http://preview.url');
 
     // Mock fs
-    mockFs.readdir.mockResolvedValue(['notification.hbs'] as any);
-    mockFs.readFile.mockResolvedValue('<h1>{{content}}</h1>');
+    (mockFs.readdir as ReturnType<typeof vi.fn>).mockResolvedValue([
+      'notification.hbs',
+    ] as string[]);
+    (mockFs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(
+      '<h1>{{content}}</h1>',
+    );
 
     // Mock email validator
-    mockEmailValidator.validate.mockReturnValue(true);
+    (mockEmailValidator.validate as ReturnType<typeof vi.fn>).mockReturnValue(
+      true,
+    );
 
     // Create service instance directly with mocked dependency
     service = new EmailService(mockConfigService);
 
     // Mock the transporter verification to succeed
-    (mockTransporter.verify as any).mockResolvedValue(true);
+    (mockTransporter.verify as ReturnType<typeof vi.fn>).mockResolvedValue(
+      true,
+    );
   });
 
   afterEach(() => {
@@ -110,11 +126,14 @@ describe('EmailService', () => {
         ...mockEmailConfig,
         ethereal: { enabled: true },
       };
-      mockConfigService.get.mockImplementation((key: string) => {
-        if (key === 'email') return etherealConfig;
-        if (key === 'email.defaults.from') return mockEmailConfig.defaults.from;
-        return null;
-      });
+      (mockConfigService.get as ReturnType<typeof vi.fn>).mockImplementation(
+        (key: string) => {
+          if (key === 'email') return etherealConfig;
+          if (key === 'email.defaults.from')
+            return mockEmailConfig.defaults.from;
+          return null;
+        },
+      );
 
       // Act
       await service.onModuleInit();
@@ -142,7 +161,9 @@ describe('EmailService', () => {
       } as unknown as nodemailer.Transporter;
 
       // Mock nodemailer to return the failing transporter
-      mockNodemailer.createTransport.mockReturnValueOnce(failingTransporter);
+      (
+        mockNodemailer.createTransport as ReturnType<typeof vi.fn>
+      ).mockReturnValueOnce(failingTransporter);
 
       // Create new service instance directly with mocked dependency
       const testService = new EmailService(mockConfigService);
@@ -157,7 +178,7 @@ describe('EmailService', () => {
 
     it('should throw error when template loading fails', async () => {
       // Arrange
-      mockFs.readdir.mockRejectedValue(
+      (mockFs.readdir as ReturnType<typeof vi.fn>).mockRejectedValue(
         new Error('Template directory not found'),
       );
 
@@ -186,7 +207,9 @@ describe('EmailService', () => {
         envelope: { from: 'noreply@test.com', to: ['test@example.com'] },
       };
 
-      mockTransporter.sendMail.mockResolvedValue(mockInfo);
+      (mockTransporter.sendMail as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockInfo,
+      );
 
       // Act
       const result = await service.send(emailOptions);
@@ -229,7 +252,9 @@ describe('EmailService', () => {
         envelope: { from: 'noreply@test.com', to: ['test@example.com'] },
       };
 
-      mockTransporter.sendMail.mockResolvedValue(mockInfo);
+      (mockTransporter.sendMail as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockInfo,
+      );
 
       // Act
       const result = await service.send(emailOptions);
@@ -239,8 +264,8 @@ describe('EmailService', () => {
         expect.objectContaining({
           to: 'test@example.com',
           subject: 'Test Subject',
-          html: expect.any(String),
-          text: expect.any(String),
+          html: expect.any(String) as string,
+          text: expect.any(String) as string,
         }),
       );
 
@@ -260,7 +285,9 @@ describe('EmailService', () => {
         envelope: {},
       };
 
-      mockTransporter.sendMail.mockResolvedValue(mockInfo);
+      (mockTransporter.sendMail as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockInfo,
+      );
 
       // Act
       const result = await service.send(emailOptions);
@@ -284,7 +311,9 @@ describe('EmailService', () => {
         html: '<h1>Test Content</h1>',
       };
 
-      mockEmailValidator.validate.mockReturnValue(false);
+      (mockEmailValidator.validate as ReturnType<typeof vi.fn>).mockReturnValue(
+        false,
+      );
 
       // Act
       const result = await service.send(emailOptions);
@@ -305,7 +334,9 @@ describe('EmailService', () => {
         html: '<h1>Test Content</h1>',
       };
 
-      mockTransporter.sendMail.mockRejectedValue(new Error('SMTP error'));
+      (mockTransporter.sendMail as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('SMTP error'),
+      );
 
       // Act
       const result = await service.send(emailOptions);
@@ -323,11 +354,14 @@ describe('EmailService', () => {
         ...mockEmailConfig,
         ethereal: { enabled: true },
       };
-      mockConfigService.get.mockImplementation((key: string) => {
-        if (key === 'email') return etherealConfig;
-        if (key === 'email.defaults.from') return mockEmailConfig.defaults.from;
-        return null;
-      });
+      (mockConfigService.get as ReturnType<typeof vi.fn>).mockImplementation(
+        (key: string) => {
+          if (key === 'email') return etherealConfig;
+          if (key === 'email.defaults.from')
+            return mockEmailConfig.defaults.from;
+          return null;
+        },
+      );
 
       // Re-initialize with Ethereal
       await service.onModuleInit();
@@ -343,7 +377,9 @@ describe('EmailService', () => {
         envelope: {},
       };
 
-      mockTransporter.sendMail.mockResolvedValue(mockInfo);
+      (mockTransporter.sendMail as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockInfo,
+      );
 
       // Act
       const result = await service.send(emailOptions);
@@ -377,7 +413,9 @@ describe('EmailService', () => {
         envelope: {},
       };
 
-      mockTransporter.sendMail.mockResolvedValue(mockInfo);
+      (mockTransporter.sendMail as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockInfo,
+      );
 
       // Act
       const result = await service.sendNotification(notification);
@@ -411,7 +449,9 @@ describe('EmailService', () => {
         envelope: {},
       };
 
-      mockTransporter.sendMail.mockResolvedValue(mockInfo);
+      (mockTransporter.sendMail as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockInfo,
+      );
 
       // Act
       await service.sendNotification(notification);
@@ -438,7 +478,9 @@ describe('EmailService', () => {
         envelope: {},
       };
 
-      mockTransporter.sendMail.mockResolvedValue(mockInfo);
+      (mockTransporter.sendMail as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockInfo,
+      );
 
       // Act
       await service.sendNotification(notification);
@@ -459,7 +501,9 @@ describe('EmailService', () => {
 
     it('should return true when verification succeeds', async () => {
       // Arrange
-      mockTransporter.verify.mockResolvedValue(true);
+      (mockTransporter.verify as ReturnType<typeof vi.fn>).mockResolvedValue(
+        true,
+      );
 
       // Act
       const result = await service.verify();
@@ -471,7 +515,9 @@ describe('EmailService', () => {
 
     it('should return false when verification fails', async () => {
       // Arrange
-      mockTransporter.verify.mockRejectedValue(new Error('Connection failed'));
+      (mockTransporter.verify as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Connection failed'),
+      );
 
       // Act
       const result = await service.verify();
@@ -488,7 +534,9 @@ describe('EmailService', () => {
 
     it('should return idle status when transporter is idle', () => {
       // Arrange
-      mockTransporter.isIdle.mockReturnValue(true);
+      (mockTransporter.isIdle as ReturnType<typeof vi.fn>).mockReturnValue(
+        true,
+      );
 
       // Act
       const stats = service.getStats();
@@ -502,7 +550,9 @@ describe('EmailService', () => {
 
     it('should return active status when transporter is not idle', () => {
       // Arrange
-      mockTransporter.isIdle.mockReturnValue(false);
+      (mockTransporter.isIdle as ReturnType<typeof vi.fn>).mockReturnValue(
+        false,
+      );
 
       // Act
       const stats = service.getStats();
@@ -533,7 +583,9 @@ describe('EmailService', () => {
         envelope: {},
       };
 
-      mockTransporter.sendMail.mockResolvedValue(mockInfo);
+      (mockTransporter.sendMail as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockInfo,
+      );
 
       // Act
       await service.send(emailOptions);
@@ -541,9 +593,97 @@ describe('EmailService', () => {
       // Assert
       expect(mockTransporter.sendMail).toHaveBeenCalledWith(
         expect.objectContaining({
-          text: expect.stringContaining('Title Paragraph with bold text.'),
+          text: expect.stringContaining(
+            'Title Paragraph with bold text.',
+          ) as string,
         }),
       );
+    });
+
+    it('should handle emails with attachments', async () => {
+      // Arrange
+      const emailOptions: EmailOptions = {
+        to: 'test@example.com',
+        subject: 'Test Subject with Attachments',
+        html: '<h1>Test Content</h1>',
+        attachments: [
+          {
+            filename: 'test.pdf',
+            content: 'fake-pdf-content',
+            contentType: 'application/pdf',
+          },
+          {
+            filename: 'image.png',
+            path: '/path/to/image.png',
+          },
+        ],
+      };
+
+      const mockInfo = {
+        messageId: 'msg-123',
+        envelope: {},
+      };
+
+      (mockTransporter.sendMail as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockInfo,
+      );
+
+      // Act
+      const result = await service.send(emailOptions);
+
+      // Assert
+      expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'test@example.com',
+          subject: 'Test Subject with Attachments',
+          html: '<h1>Test Content</h1>',
+          attachments: [
+            {
+              filename: 'test.pdf',
+              content: 'fake-pdf-content',
+              contentType: 'application/pdf',
+            },
+            {
+              filename: 'image.png',
+              path: '/path/to/image.png',
+            },
+          ],
+        }),
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it('should verify isEthereal property initialization', async () => {
+      // Arrange - Create new service to check property initialization
+      const testService = new EmailService(mockConfigService);
+
+      // Assert - Test isEthereal initialization (covers line 22)
+      expect(
+        (testService as unknown as { isEthereal: boolean }).isEthereal,
+      ).toBe(false);
+
+      // Initialize service to ensure it works properly
+      await testService.onModuleInit();
+
+      // Verify the service can send a basic email
+      const emailOptions: EmailOptions = {
+        to: 'test@example.com',
+        subject: 'Property Test',
+        html: '<h1>Test</h1>',
+      };
+
+      const mockInfo = {
+        messageId: 'msg-123',
+        envelope: {},
+      };
+
+      (mockTransporter.sendMail as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockInfo,
+      );
+
+      const result = await testService.send(emailOptions);
+      expect(result.success).toBe(true);
     });
   });
 });

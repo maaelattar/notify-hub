@@ -35,7 +35,7 @@ export class UpdateNotificationDto {
     example: '2024-12-26T10:00:00Z',
   })
   @IsOptional()
-  @IsDateString()
+  @IsIsoDateStringVo()
   scheduledFor?: string;
 
   @ApiPropertyOptional({

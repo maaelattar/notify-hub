@@ -86,17 +86,4 @@ export const notificationConfig = registerAs('notification', () => {
   } as NotificationConfig;
 });
 
-export const validateNotificationConfig = (
-  config: Record<string, unknown>,
-): ValidatedNotificationEnv => {
-  const result = notificationConfigSchema.validate(config, {
-    allowUnknown: true,
-    abortEarly: false,
-  });
 
-  if (result.error) {
-    throw new Error(`Configuration validation error: ${result.error.message}`);
-  }
-
-  return result.value as ValidatedNotificationEnv;
-};

@@ -259,7 +259,7 @@ export class EventBusService
   /**
    * Check if an object is an event handler
    */
-  private isEventHandler(obj: any): obj is EventHandler {
+  private isEventHandler(obj: unknown): obj is EventHandler {
     return (
       obj &&
       typeof obj === 'object' &&

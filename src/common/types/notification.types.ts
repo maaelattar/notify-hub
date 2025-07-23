@@ -46,8 +46,7 @@ export interface BaseNotificationMetadata {
   /** Timestamp for debugging purposes */
   timestamp?: string;
 
-  /** Allow additional custom properties */
-  [key: string]: any;
+  
 }
 
 export interface EmailNotificationMetadata extends BaseNotificationMetadata {

@@ -1,4 +1,13 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  afterAll,
+} from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CryptoService } from './crypto.service';
 import * as crypto from 'crypto';

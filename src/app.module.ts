@@ -84,23 +84,14 @@ import { APP_CONSTANTS } from './common/constants/app.constants';
         },
       }),
     }),
-    ThrottlerModule.forRoot([
-      {
-        name: 'global',
-        ttl: APP_CONSTANTS.THROTTLING.GLOBAL_TTL, // 1 minute
-        limit: APP_CONSTANTS.THROTTLING.GLOBAL_LIMIT, // 100 requests per minute
-      },
-      {
-        name: 'create',
-        ttl: APP_CONSTANTS.THROTTLING.CREATE_TTL,
-        limit: APP_CONSTANTS.THROTTLING.CREATE_LIMIT, // 10 creates per minute
-      },
-      {
-        name: 'expensive',
-        ttl: APP_CONSTANTS.THROTTLING.EXPENSIVE_TTL, // 5 minutes
-        limit: APP_CONSTANTS.THROTTLING.EXPENSIVE_LIMIT, // 5 expensive operations per 5 minutes
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        ttl: configService.get('THROTTLE_TTL'),
+        limit: configService.get('THROTTLE_LIMIT'),
+      }),
+    }),
     SecurityModule, // Consolidates AuthModule + guards + middleware
     MonitoringModule, // Health, performance, and metrics monitoring
     EventsModule, // Event-driven architecture

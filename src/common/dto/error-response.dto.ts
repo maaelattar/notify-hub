@@ -14,7 +14,7 @@ export class ErrorResponseDto {
   message: string;
 
   @ApiProperty({
-    example: 'VALIDATION_ERROR',
+    example: ERROR_CODES.VALIDATION_ERROR,
     description: 'Machine-readable error code',
   })
   code: string;
@@ -64,5 +64,35 @@ export class ErrorResponseDto {
     description: 'Actionable guidance for resolving the error',
     required: false,
   })
-  guidance?: Record<string, any>;
+  export interface ErrorGuidance {
+  message: string;
+  documentation?: string;
+  actions?: string[];
+}
+
+export class ErrorResponseDto {
+  // ... existing properties ...
+
+  @ApiProperty({
+    example: { userId: '123' },
+    description: 'Additional error context',
+    required: false,
+  })
+  context?: Record<string, unknown>;
+
+  @ApiProperty({
+    example: {
+      message:
+        'Please check the request format and ensure all required fields are provided correctly.',
+      documentation: 'http://localhost:3000/api#/notifications',
+      actions: [
+        'Verify all required fields are provided',
+        'Check data types match the schema',
+      ],
+    },
+    description: 'Actionable guidance for resolving the error',
+    required: false,
+  })
+  guidance?: ErrorGuidance;
+}
 }

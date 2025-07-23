@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import { ModuleRef } from '@nestjs/core';
 
@@ -11,20 +11,30 @@ import { TestDataBuilder } from '../../../test/test-utils';
 
 describe('ChannelRouter', () => {
   let service: ChannelRouter;
-  let mockModuleRef: ModuleRef;
-  let mockConfigService: ConfigService;
-  let mockMetricsService: RedisMetricsService;
-  let mockEmailService: EmailService;
+  let mockModuleRef: { get: ReturnType<typeof vi.fn> };
+  let mockConfigService: { get: ReturnType<typeof vi.fn> };
+  let mockMetricsService: {
+    recordChannelDelivery: ReturnType<typeof vi.fn>;
+    recordNotificationSent: ReturnType<typeof vi.fn>;
+    recordNotificationFailed: ReturnType<typeof vi.fn>;
+    getMetrics: ReturnType<typeof vi.fn>;
+    resetMetrics: ReturnType<typeof vi.fn>;
+    healthCheck: ReturnType<typeof vi.fn>;
+  };
+  let mockEmailService: {
+    sendNotification: ReturnType<typeof vi.fn>;
+    verify: ReturnType<typeof vi.fn>;
+  };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     // Create mocks
     mockModuleRef = {
       get: vi.fn(),
-    } as any;
+    };
 
     mockConfigService = {
       get: vi.fn().mockReturnValue(true), // Enable all channels by default
-    } as any;
+    };
 
     mockMetricsService = {
       recordChannelDelivery: vi.fn().mockResolvedValue(undefined),
@@ -35,15 +45,19 @@ describe('ChannelRouter', () => {
       healthCheck: vi
         .fn()
         .mockResolvedValue({ redis: true, metricsOperational: true }),
-    } as any;
+    };
 
     mockEmailService = {
       sendNotification: vi.fn(),
       verify: vi.fn(),
-    } as any;
+    };
 
     // Create service instance directly with mocked dependencies
-    service = new ChannelRouter(mockModuleRef, mockConfigService, mockMetricsService);
+    service = new ChannelRouter(
+      mockModuleRef as unknown as ModuleRef,
+      mockConfigService as unknown as ConfigService,
+      mockMetricsService as unknown as RedisMetricsService,
+    );
 
     // Mock module ref to return email service when requested
     mockModuleRef.get.mockImplementation((token) => {
@@ -132,7 +146,7 @@ describe('ChannelRouter', () => {
           previewUrl: emailResult.previewUrl,
           envelope: emailResult.envelope,
         },
-        deliveredAt: expect.any(Date),
+        deliveredAt: expect.any(Date) as Date,
       });
     });
 
@@ -271,7 +285,7 @@ describe('ChannelRouter', () => {
     it('should return channel statistics', async () => {
       // Arrange
       mockEmailService.verify.mockResolvedValue(true);
-      mockConfigService.get.mockImplementation((key) => {
+      mockConfigService.get.mockImplementation((key: string) => {
         if (key === 'channels.email.enabled') return true;
         return false; // Default to false for unknown keys
       });
@@ -337,6 +351,68 @@ describe('ChannelRouter', () => {
 
       invalidEmails.forEach((email) => {
         expect(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)).toBe(false);
+      });
+    });
+  });
+
+  describe('Error handling edge cases', () => {
+    beforeEach(() => {
+      service.onModuleInit();
+    });
+
+    it('should handle non-Error exceptions during routing', async () => {
+      // Arrange
+      const notification = TestDataBuilder.createNotification({
+        channel: NotificationChannel.EMAIL,
+        recipient: 'test@example.com',
+      });
+
+      // Simulate a non-Error exception (like a string or object)
+      const nonErrorException = 'String error message';
+      mockEmailService.verify.mockResolvedValue(true);
+      mockEmailService.sendNotification.mockRejectedValue(nonErrorException);
+
+      // Act
+      const result = await service.route(notification);
+
+      // Assert
+      expect(mockMetricsService.recordChannelDelivery).toHaveBeenCalledWith(
+        NotificationChannel.EMAIL,
+        false,
+        expect.any(Number),
+      );
+
+      expect(result).toEqual({
+        success: false,
+        channel: NotificationChannel.EMAIL,
+        error: 'String error message', // Should convert non-Error to string
+        details: undefined, // No stack trace for non-Error exceptions
+      });
+    });
+
+    it('should handle Error exceptions without stack trace', async () => {
+      // Arrange
+      const notification = TestDataBuilder.createNotification({
+        channel: NotificationChannel.EMAIL,
+        recipient: 'test@example.com',
+      });
+
+      // Create an Error without stack trace
+      const errorWithoutStack = new Error('Error without stack');
+      delete errorWithoutStack.stack;
+
+      mockEmailService.verify.mockResolvedValue(true);
+      mockEmailService.sendNotification.mockRejectedValue(errorWithoutStack);
+
+      // Act
+      const result = await service.route(notification);
+
+      // Assert
+      expect(result).toEqual({
+        success: false,
+        channel: NotificationChannel.EMAIL,
+        error: 'Error without stack',
+        details: undefined, // Should be undefined when no stack trace
       });
     });
   });

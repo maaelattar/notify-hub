@@ -1,4 +1,13 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  afterAll,
+} from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -181,7 +190,7 @@ describe('Individual Strategy Classes', () => {
       const strategy = new ResourceNotFoundStrategy();
       const guidance = strategy.createGuidance(baseUrl);
 
-      expect(guidance.getMessage()).toContain('not found');
+      expect(guidance.getMessage()).toContain(ERROR_MESSAGES.RESOURCE_NOT_FOUND);
       expect(guidance.getActions()).toHaveLength(3);
     });
   });

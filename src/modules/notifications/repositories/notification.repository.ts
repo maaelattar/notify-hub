@@ -196,4 +196,25 @@ export class NotificationRepository extends BaseRepository<Notification> {
     }
     return this.repository.save(notification);
   }
+
+  async getMetricsForPeriod(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Array<{ status: NotificationStatus; count: number }>> {
+    const results = await this.repository
+      .createQueryBuilder('notification')
+      .select('notification.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .where('notification.createdAt BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      })
+      .groupBy('notification.status')
+      .getRawMany<{ status: NotificationStatus; count: string }>();
+
+    return results.map((row) => ({
+      status: row.status,
+      count: parseInt(row.count, 10),
+    }));
+  }
 }

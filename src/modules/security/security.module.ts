@@ -48,6 +48,11 @@ import { SharedModule } from '../shared/shared.module';
  * - Middleware: Security headers, correlation ID tracking
  * - Decorators: RequireApiKey, RequireScope, SkipRateLimit
  */
+import { ApiKeyThrottlerGuard } from './guards/api-key-throttler.guard';
+import { CustomThrottlerGuard } from './guards/throttler.guard';
+
+// ...
+
 @Module({
   imports: [
     // Database entities
@@ -66,10 +71,9 @@ import { SharedModule } from '../shared/shared.module';
 
     // Security Guards
     ApiKeyGuard,
-    CustomThrottlerGuard,
     {
       provide: APP_GUARD,
-      useClass: CustomThrottlerGuard,
+      useClass: ApiKeyThrottlerGuard,
     },
 
     // Security Middleware
@@ -84,7 +88,6 @@ import { SharedModule } from '../shared/shared.module';
 
     // Export guards for use as providers
     ApiKeyGuard,
-    CustomThrottlerGuard,
 
     // Export middleware for manual configuration
     CorrelationIdMiddleware,

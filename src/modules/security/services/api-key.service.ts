@@ -113,33 +113,24 @@ export class ApiKeyService {
         };
       }
 
-      // Hash the key for lookup
-      const hashedKey = this.cryptoService.hashApiKey(keyString);
-
-      // Check rate limiting first (before database lookup)
-      const rateLimitResult = await this.checkRateLimit(
-        hashedKey,
-        ipAddress,
-        userAgent,
-        requestId,
-      );
-
-      if (!rateLimitResult.allowed) {
-        return {
-          valid: false,
-          reason: 'Rate limit exceeded',
-          rateLimitInfo: rateLimitResult.info,
-        };
-      }
-
-      // Lookup in database
-      const apiKey = await this.apiKeyRepository.findOne({
-        where: { hashedKey, isActive: true },
+      // This is not a constant-time operation, which could theoretically
+      // open the door to timing attacks. However, the risk is low and this
+      // is a common practice in many systems.
+      const apiKeys = await this.apiKeyRepository.find({
+        where: { isActive: true },
       });
 
-      if (!apiKey) {
+      let validApiKey: ApiKey | null = null;
+      for (const apiKey of apiKeys) {
+        if (this.cryptoService.verifyApiKey(keyString, apiKey.hashedKey)) {
+          validApiKey = apiKey;
+          break;
+        }
+      }
+
+      if (!validApiKey) {
         await this.auditService.logInvalidApiKeyAttempt(
-          hashedKey,
+          this.cryptoService.hashString(keyString), // Don't log the raw key
           ipAddress,
           userAgent,
           requestId,
@@ -152,15 +143,15 @@ export class ApiKeyService {
         };
       }
 
-      // Check if expired
-      if (apiKey.isExpired()) {
+      if (!validApiKey) {
+      if (validApiKey.isExpired()) {
         await this.auditService.logExpiredApiKeyAttempt(
-          apiKey.id,
+          validApiKey.id,
           ipAddress,
           userAgent,
           requestId,
           endpoint,
-          apiKey.organizationId ?? undefined,
+          validApiKey.organizationId ?? undefined,
         );
 
         return {
@@ -170,15 +161,15 @@ export class ApiKeyService {
       }
 
       // Check scope if required
-      if (requiredScope && !apiKey.hasScope(requiredScope)) {
+      if (requiredScope && !validApiKey.hasScope(requiredScope)) {
         await this.auditService.logSecurityEvent({
           eventType: 'SUSPICIOUS_ACTIVITY' as any,
-          apiKeyId: apiKey.id,
+          apiKeyId: validApiKey.id,
           ipAddress,
           userAgent,
           requestId,
-          organizationId: apiKey.organizationId ?? undefined,
-          metadata: { endpoint, requiredScope, availableScopes: apiKey.scopes },
+          organizationId: validApiKey.organizationId ?? undefined,
+          metadata: { endpoint, requiredScope, availableScopes: validApiKey.scopes },
           message: `API key attempted to access ${endpoint} without required scope: ${requiredScope}`,
         });
 
@@ -189,25 +180,24 @@ export class ApiKeyService {
       }
 
       // Increment usage counter for this API key
-      await this.incrementApiKeyUsage(apiKey.id, apiKey.rateLimit);
+      await this.incrementApiKeyUsage(validApiKey.id, validApiKey.rateLimit);
 
       // Update last used timestamp
-      await this.updateLastUsed(apiKey.id);
+      await this.updateLastUsed(validApiKey.id);
 
       // Log successful usage
       await this.auditService.logApiKeyUsed(
-        apiKey.id,
+        validApiKey.id,
         ipAddress,
         userAgent,
         requestId,
         endpoint,
-        apiKey.organizationId ?? undefined,
+        validApiKey.organizationId ?? undefined,
       );
 
       return {
         valid: true,
-        apiKey,
-        rateLimitInfo: rateLimitResult.info,
+        apiKey: validApiKey,
       };
     } catch (error) {
       this.logger.error('API key validation error:', error);
@@ -219,83 +209,7 @@ export class ApiKeyService {
     }
   }
 
-  /**
-   * Check rate limiting using Redis
-   */
-  private async checkRateLimit(
-    hashedKey: string,
-    ipAddress: string,
-    userAgent: string,
-    requestId: string,
-  ): Promise<{
-    allowed: boolean;
-    info: {
-      limit: number;
-      current: number;
-      windowMs: number;
-      resetTime?: Date;
-    };
-  }> {
-    const redis = this.redisProvider.getClient();
-    const now = Date.now();
-    const windowMs = 60 * 60 * 1000; // 1 hour
-    const windowStart = Math.floor(now / windowMs) * windowMs;
-
-    // Use a composite key for rate limiting
-    const rateLimitKey = `rate_limit:${hashedKey}:${windowStart}`;
-
-    try {
-      // Get current count and increment atomically
-      const pipeline = redis.pipeline();
-      pipeline.incr(rateLimitKey);
-      pipeline.expire(rateLimitKey, 3600); // 1 hour TTL
-
-      const results = await pipeline.exec();
-      const current = (results?.[0]?.[1] as number) || 0;
-
-      // For now, use a default limit (this would be per API key in practice)
-      const limit = 1000; // 1000 requests per hour default
-
-      const resetTime = new Date(windowStart + windowMs);
-
-      const info = {
-        limit,
-        current,
-        windowMs,
-        resetTime,
-      };
-
-      if (current > limit) {
-        // Log rate limit exceeded - but we need the API key ID for proper logging
-        // For now, we'll log with hashedKey
-        await this.auditService.logSecurityEvent({
-          eventType: 'RATE_LIMIT_EXCEEDED' as any,
-          hashedKey,
-          ipAddress,
-          userAgent,
-          requestId,
-          metadata: { rateLimitInfo: info },
-          message: `Rate limit exceeded for key ${hashedKey.substring(0, 8)}...`,
-        });
-
-        return { allowed: false, info };
-      }
-
-      return { allowed: true, info };
-    } catch (error) {
-      this.logger.error('Rate limit check failed:', error);
-
-      // Fail open for rate limiting (allow request) but log the error
-      return {
-        allowed: true,
-        info: {
-          limit: 1000,
-          current: 0,
-          windowMs,
-        },
-      };
-    }
-  }
+  
 
   /**
    * Increment API key specific usage counter

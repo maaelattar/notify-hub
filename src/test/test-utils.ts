@@ -157,7 +157,9 @@ export class MockFactory {
   /**
    * Creates a mock repository with common methods
    */
-  static createMockRepository<T extends ObjectLiteral = any>(): MockedFunction<Repository<T>> {
+  static createMockRepository<T extends ObjectLiteral = any>(): MockedFunction<
+    Repository<T>
+  > {
     return {
       find: vi.fn(),
       findOne: vi.fn(),

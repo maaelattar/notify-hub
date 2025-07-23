@@ -45,21 +45,19 @@ import { SharedModule } from '../shared/shared.module';
     SharedModule, // For MetricsService
   ],
   controllers: [NotificationController],
+  import { NotificationCommandService } from './services/notification-command.service';
+import { NotificationQueryService } from './services/notification-query.service';
+
+// ...
+
   providers: [
     NotificationRepository,
-    NotificationService,
-    NotificationBusinessLogicService,
-    NotificationDataAccessService,
+    NotificationCommandService,
+    NotificationQueryService,
     NotificationProducer,
     NotificationProcessor,
     NotificationValidatorService,
-    NotificationOrchestrationService,
   ],
-  exports: [
-    NotificationService,
-    NotificationProducer,
-    NotificationBusinessLogicService,
-    NotificationDataAccessService,
-  ],
+  exports: [NotificationCommandService, NotificationQueryService, NotificationProducer],
 })
 export class NotificationsModule {}

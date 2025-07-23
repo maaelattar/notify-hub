@@ -11,7 +11,9 @@ import { MockedFunction, vi } from 'vitest';
  */
 export interface MockLogger extends Partial<Logger> {
   log: MockedFunction<(message: string, context?: string) => void>;
-  error: MockedFunction<(message: string, trace?: string, context?: string) => void>;
+  error: MockedFunction<
+    (message: string, trace?: string, context?: string) => void
+  >;
   warn: MockedFunction<(message: string, context?: string) => void>;
   debug: MockedFunction<(message: string, context?: string) => void>;
   verbose: MockedFunction<(message: string, context?: string) => void>;
@@ -23,25 +25,25 @@ export interface MockLogger extends Partial<Logger> {
 export interface MockRedisClient {
   pipeline: MockedFunction<() => MockRedisPipeline>;
   get: MockedFunction<(key: string) => Promise<string | null>>;
-  set: MockedFunction<(key: string, value: string, ...args: any[]) => Promise<string>>;
+  set: MockedFunction<
+    (key: string, value: string, ...args: any[]) => Promise<string>
+  >;
   del: MockedFunction<(key: string) => Promise<number>>;
   exists: MockedFunction<(key: string) => Promise<number>>;
   hgetall: MockedFunction<(key: string) => Promise<Record<string, string>>>;
   hset: MockedFunction<(key: string, ...args: any[]) => Promise<number>>;
-  hincrby: MockedFunction<(
-    key: string,
-    field: string,
-    increment: number
-  ) => Promise<number>>;
+  hincrby: MockedFunction<
+    (key: string, field: string, increment: number) => Promise<number>
+  >;
   expire: MockedFunction<(key: string, seconds: number) => Promise<number>>;
   llen: MockedFunction<(key: string) => Promise<number>>;
-  lrange: MockedFunction<(
-    key: string,
-    start: number,
-    end: number
-  ) => Promise<string[]>>;
+  lrange: MockedFunction<
+    (key: string, start: number, end: number) => Promise<string[]>
+  >;
   lpush: MockedFunction<(key: string, ...values: string[]) => Promise<number>>;
-  ltrim: MockedFunction<(key: string, start: number, end: number) => Promise<string>>;
+  ltrim: MockedFunction<
+    (key: string, start: number, end: number) => Promise<string>
+  >;
   keys: MockedFunction<(pattern: string) => Promise<string[]>>;
 }
 
@@ -49,20 +51,20 @@ export interface MockRedisClient {
  * Redis pipeline mock interface
  */
 export interface MockRedisPipeline {
-  hincrby: MockedFunction<(
-    key: string,
-    field: string,
-    increment: number
-  ) => MockRedisPipeline>;
+  hincrby: MockedFunction<
+    (key: string, field: string, increment: number) => MockRedisPipeline
+  >;
   expire: MockedFunction<(key: string, seconds: number) => MockRedisPipeline>;
-  lpush: MockedFunction<(key: string, ...values: string[]) => MockRedisPipeline>;
-  ltrim: MockedFunction<(
-    key: string,
-    start: number,
-    end: number
-  ) => MockRedisPipeline>;
+  lpush: MockedFunction<
+    (key: string, ...values: string[]) => MockRedisPipeline
+  >;
+  ltrim: MockedFunction<
+    (key: string, start: number, end: number) => MockRedisPipeline
+  >;
   hgetall: MockedFunction<(key: string) => MockRedisPipeline>;
-  lrange: MockedFunction<(key: string, start: number, end: number) => MockRedisPipeline>;
+  lrange: MockedFunction<
+    (key: string, start: number, end: number) => MockRedisPipeline
+  >;
   exec: MockedFunction<() => Promise<any[]>>;
 }
 
@@ -84,7 +86,9 @@ export interface MockRepository<T = any> {
   findOneOrFail: MockedFunction<(options?: any) => Promise<T>>;
   save: MockedFunction<(entity: Partial<T>) => Promise<T>>;
   create: MockedFunction<(entityLike?: Partial<T>) => T>;
-  update: MockedFunction<(criteria: any, partialEntity: Partial<T>) => Promise<any>>;
+  update: MockedFunction<
+    (criteria: any, partialEntity: Partial<T>) => Promise<any>
+  >;
   delete: MockedFunction<(criteria: any) => Promise<any>>;
   remove: MockedFunction<(entity: T) => Promise<T>>;
   count: MockedFunction<(options?: any) => Promise<number>>;
@@ -108,12 +112,14 @@ export interface MockNotificationService {
  * Mock notification producer interface
  */
 export interface MockNotificationProducer {
-  addNotificationJob: MockedFunction<(
-    id: string,
-    priority?: any,
-    scheduledFor?: Date,
-    metadata?: any
-  ) => Promise<void>>;
+  addNotificationJob: MockedFunction<
+    (
+      id: string,
+      priority?: any,
+      scheduledFor?: Date,
+      metadata?: any,
+    ) => Promise<void>
+  >;
   removeNotificationJob: MockedFunction<(id: string) => Promise<boolean>>;
   getJobStatus: MockedFunction<(id: string) => Promise<any>>;
   getQueueHealth: MockedFunction<() => Promise<any>>;
@@ -126,11 +132,9 @@ export interface MockBullQueue {
   add: MockedFunction<(name: string, data: any, options?: any) => Promise<any>>;
   getJob: MockedFunction<(jobId: string) => Promise<any>>;
   removeJobs: MockedFunction<(pattern: string) => Promise<void>>;
-  getJobs: MockedFunction<(
-    types: string[],
-    start?: number,
-    end?: number
-  ) => Promise<any[]>>;
+  getJobs: MockedFunction<
+    (types: string[], start?: number, end?: number) => Promise<any[]>
+  >;
   getJobCounts: MockedFunction<() => Promise<any>>;
   clean: MockedFunction<(grace: number, type: string) => Promise<any[]>>;
   pause: MockedFunction<() => Promise<void>>;

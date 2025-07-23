@@ -1,4 +1,13 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  afterAll,
+} from 'vitest';
 import { validateConfig } from './config';
 import { validateNotificationConfig } from '../modules/notifications/config/notification.config';
 

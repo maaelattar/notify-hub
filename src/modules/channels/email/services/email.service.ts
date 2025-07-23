@@ -196,6 +196,7 @@ export class EmailService implements EmailProvider, OnModuleInit {
 
       // Add preview URL for Ethereal
       if (this.isEthereal) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         const previewUrl = nodemailer.getTestMessageUrl(info);
         result.previewUrl = previewUrl || undefined;
         this.logger.log(`Preview email at: ${result.previewUrl}`);

@@ -1,4 +1,13 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  afterAll,
+} from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, EntityManager, Repository } from 'typeorm';
@@ -192,9 +201,7 @@ describe('NotificationService', () => {
       });
 
       // Mock orchestration service to return created notification
-      mockOrchestration.createNotification.mockResolvedValue(
-        savedNotification,
-      );
+      mockOrchestration.createNotification.mockResolvedValue(savedNotification);
 
       // Act
       const result = await service.create(createDto);
@@ -350,9 +357,7 @@ describe('NotificationService', () => {
       const result = await service.findOne(notificationId);
 
       // Assert
-      expect(mockDataAccess.findById).toHaveBeenCalledWith(
-        notificationId,
-      );
+      expect(mockDataAccess.findById).toHaveBeenCalledWith(notificationId);
       TestAssertions.assertNotificationResponse(result, {
         id: notificationId,
         channel: notification.channel,
@@ -434,10 +439,10 @@ describe('NotificationService', () => {
       await service.findAll(filters);
 
       // Assert
-      expect(mockDataAccess.findAll).toHaveBeenCalledWith(
-        expect.any(Object),
-        { page: 1, limit: 100 },
-      );
+      expect(mockDataAccess.findAll).toHaveBeenCalledWith(expect.any(Object), {
+        page: 1,
+        limit: 100,
+      });
     });
 
     it('should apply filters correctly', async () => {
@@ -491,9 +496,7 @@ describe('NotificationService', () => {
         content: updateDto.content,
       });
 
-      mockDataAccess.findById.mockResolvedValue(
-        existingNotification,
-      );
+      mockDataAccess.findById.mockResolvedValue(existingNotification);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
       mockRepository.findOne.mockResolvedValue(updatedNotification);
 
@@ -565,9 +568,7 @@ describe('NotificationService', () => {
         content: updateDto.content,
       });
 
-      mockDataAccess.findById.mockResolvedValue(
-        existingNotification,
-      );
+      mockDataAccess.findById.mockResolvedValue(existingNotification);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
       mockRepository.findOne.mockResolvedValue(updatedNotification);
 
@@ -603,9 +604,7 @@ describe('NotificationService', () => {
         scheduledFor: newSchedule,
       });
 
-      mockDataAccess.findById.mockResolvedValue(
-        existingNotification,
-      );
+      mockDataAccess.findById.mockResolvedValue(existingNotification);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
       mockRepository.findOne.mockResolvedValue(updatedNotification);
       mockNotificationProducer.removeNotificationJob.mockResolvedValue(true);
@@ -802,9 +801,7 @@ describe('NotificationService', () => {
         }),
       );
 
-      mockDataAccess.getStats.mockResolvedValue(
-        statusCounts,
-      );
+      mockDataAccess.getStats.mockResolvedValue(statusCounts);
       mockNotificationRepository.getRecentFailures.mockResolvedValue(
         recentFailures,
       );

@@ -7,8 +7,7 @@ config();
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url:
-    process.env.DATABASE_URL ||
-    'postgresql://notifyhub_user:notifyhub_password@localhost:5432/notifyhub',
+    process.env.DATABASE_URL!,
   entities: [
     process.env.NODE_ENV === 'production'
       ? 'dist/**/*.entity.js'

@@ -158,7 +158,7 @@ export class ErrorGuidanceFactory {
     ['VALIDATION_ERROR', new ValidationErrorStrategy()],
     ['RESOURCE_NOT_FOUND', new ResourceNotFoundStrategy()],
     ['NOT_FOUND', new ResourceNotFoundStrategy()], // Alias
-    ['TOO_MANY_REQUESTS', new RateLimitStrategy()],
+    [ERROR_CODES.TOO_MANY_REQUESTS, new RateLimitStrategy()],
     ['DUPLICATE_RESOURCE', new DuplicateResourceStrategy()],
     ['INVALID_STATE', new InvalidStateStrategy()],
   ]);

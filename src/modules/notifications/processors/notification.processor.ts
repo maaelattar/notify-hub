@@ -187,10 +187,13 @@ export class NotificationProcessor {
       }
 
       // Track failed metric
-      this.metricsService.recordNotificationFailed(
-        priority,
+      this.metricsService.recordFailure(
+        'notification_processing',
         errorMessage,
-        notification?.channel,
+        {
+          channel: notification?.channel || 'unknown',
+          priority: typedPriority,
+        },
       );
     }
   }

@@ -1,4 +1,6 @@
-import { BadRequestException, ValidationError } from '@nestjs/common';
+import { ValidationError } from 'class-validator';
+import { BadRequestException } from '@nestjs/common';
+import { ERROR_CODES } from '../constants/error-codes.constants';
 
 export function validationExceptionFactory(errors: ValidationError[]) {
   const formattedErrors: Record<string, string[]> = {};
@@ -18,7 +20,7 @@ export function validationExceptionFactory(errors: ValidationError[]) {
 
   return new BadRequestException({
     message: 'Validation failed',
-    code: 'VALIDATION_ERROR',
+    code: ERROR_CODES.VALIDATION_ERROR,
     errors: formattedErrors,
   });
 }

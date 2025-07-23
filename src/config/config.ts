@@ -162,6 +162,6 @@ export const redisConfig = registerAs('redis', () => {
 });
 
 export const securityConfig = registerAs('security', () => {
-  const validatedEnv = validateConfig(process.env);
+  const validatedEnv = validateConfig<ValidatedEnv>(configSchema, process.env);
   return createSecurityConfig(validatedEnv);
 });

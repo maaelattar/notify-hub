@@ -59,11 +59,7 @@ export class ApiKeyGuard implements CanActivate {
     // Extract request metadata
     const ipAddress = this.getClientIp(request);
     const userAgent = request.headers['user-agent'] ?? 'unknown';
-    const requestId = request.requestId ?? this.generateRequestId();
     const endpoint = `${request.method} ${request.route?.path ?? request.url}`;
-
-    // Set request ID for tracking
-    request.requestId = requestId;
 
     try {
       // Extract API key from request
@@ -84,7 +80,7 @@ export class ApiKeyGuard implements CanActivate {
           apiKey,
           ipAddress,
           userAgent,
-          requestId,
+          request.correlationId, // Use correlationId from middleware
           endpoint,
           requiredScope,
         );
@@ -95,7 +91,7 @@ export class ApiKeyGuard implements CanActivate {
           {
             ipAddress,
             userAgent,
-            requestId,
+            requestId: request.correlationId,
             endpoint,
             reason: validationResult.reason,
           },
@@ -109,14 +105,13 @@ export class ApiKeyGuard implements CanActivate {
       this.attachApiKeyMetadata(
         request,
         validationResult.apiKey!,
-        validationResult.rateLimitInfo,
       );
 
       this.logger.debug(
         `API key validation successful for ${validationResult.apiKey!.name}`,
         {
           apiKeyId: validationResult.apiKey!.id,
-          requestId,
+          requestId: request.correlationId,
           endpoint,
         },
       );
@@ -131,7 +126,7 @@ export class ApiKeyGuard implements CanActivate {
         error: error instanceof Error ? error.message : error,
         ipAddress,
         userAgent,
-        requestId,
+        requestId: request.correlationId,
         endpoint,
       });
 
@@ -156,42 +151,20 @@ export class ApiKeyGuard implements CanActivate {
       return authHeader.substring(7);
     }
 
-    // Check query parameter as fallback (less secure)
-    return request.query.api_key as string;
-  }
-
-  private getClientIp(request: Request): string {
-    // Check various headers for real IP (handle load balancers/proxies)
-    const forwardedFor = request.headers['x-forwarded-for'] as string;
-    if (forwardedFor) {
-      return forwardedFor.split(',')[0].trim();
-    }
-
-    const realIp = request.headers['x-real-ip'] as string;
-    if (realIp) {
-      return realIp;
-    }
-
-    return request.ip ?? 'unknown';
-  }
-
-  private generateRequestId(): string {
-    return `req_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    return undefined;
   }
 
   private attachApiKeyMetadata(
     request: AuthenticatedRequest,
     apiKey: ApiKey,
-    rateLimitInfo?: { limit: number; current: number; resetTime?: Date },
   ): void {
     request.apiKey = {
       id: apiKey.id,
       scopes: apiKey.scopes,
       organizationId: apiKey.organizationId ?? undefined,
       rateLimit: {
-        limit: rateLimitInfo?.limit ?? 0,
-        current: rateLimitInfo?.current ?? 0,
-        resetTime: rateLimitInfo?.resetTime,
+        limit: apiKey.rateLimit.limit,
+        current: 0, // This will be handled by the ThrottlerGuard
       },
     };
   }

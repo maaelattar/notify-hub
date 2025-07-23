@@ -61,7 +61,7 @@ export class Notification {
   status: NotificationStatus;
 
   @Column({ type: 'jsonb', default: {} })
-  metadata: Record<string, any>; // Channel-specific data
+  metadata: NotificationMetadata; // Channel-specific data
 
   @Column({ type: 'int', default: 0 })
   retryCount: number;

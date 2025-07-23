@@ -48,7 +48,7 @@ export class CreateNotificationDto {
     example: '2024-12-25T09:00:00Z',
   })
   @IsOptional()
-  @IsDateString()
+  @IsIsoDateStringVo()
   scheduledFor?: string;
 
   // Note: Advanced business validation logic is handled by NotificationValidatorService

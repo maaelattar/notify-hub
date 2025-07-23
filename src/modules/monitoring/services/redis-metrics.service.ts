@@ -4,6 +4,8 @@ import { RedisProvider } from '../../common/providers/redis.provider';
 import { NotificationPriority } from '../../notifications/enums/notification-priority.enum';
 import { APP_CONSTANTS } from '../../../common/constants/app.constants';
 
+import { IMetricsService } from '../../../common/services/metrics.interface';
+
 export interface NotificationMetrics {
   notificationsSent: number;
   notificationsFailed: number;
@@ -22,7 +24,7 @@ export interface QueueMetrics {
 }
 
 @Injectable()
-export class RedisMetricsService {
+export class RedisMetricsService implements IMetricsService {
   private readonly logger = new Logger(RedisMetricsService.name);
 
   // Redis key prefixes

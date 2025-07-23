@@ -113,8 +113,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     } else if (this.isNetworkError(exception)) {
       // Handle network errors (webhook failures, etc)
       status = HttpStatus.BAD_GATEWAY;
-      message = 'External service communication failed';
-      code = 'NETWORK_ERROR';
+      message = ERROR_MESSAGES.EXTERNAL_SERVICE_COMMUNICATION_FAILED;
+      code = ERROR_CODES.NETWORK_ERROR;
     } else if (exception instanceof Error) {
       // Check for specific error patterns
       if (exception.message.includes('Invalid signature')) {
@@ -133,7 +133,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     return { status, message, code, errors };
   }
 
-  private handleDatabaseError(error: QueryFailedError<any>): {
+  private handleDatabaseError(error: QueryFailedError): {
     status: number;
     message: string;
     code: string;
@@ -163,8 +163,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (message.includes('not-null constraint')) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Required field missing',
-        code: 'MISSING_FIELD',
+        message: ERROR_MESSAGES.REQUIRED_FIELD_MISSING,
+        code: ERROR_CODES.MISSING_FIELD,
       };
     }
 
@@ -178,16 +178,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   private getErrorCode(status: number): string {
     const errorCodes: Record<number, string> = {
-      400: 'BAD_REQUEST',
-      401: 'UNAUTHORIZED',
-      403: 'FORBIDDEN',
-      404: 'NOT_FOUND',
-      409: 'CONFLICT',
-      422: 'UNPROCESSABLE_ENTITY',
-      429: 'TOO_MANY_REQUESTS',
-      500: 'INTERNAL_ERROR',
-      502: 'BAD_GATEWAY',
-      503: 'SERVICE_UNAVAILABLE',
+      [HttpStatus.BAD_REQUEST]: ERROR_CODES.BAD_REQUEST,
+      [HttpStatus.UNAUTHORIZED]: ERROR_CODES.UNAUTHORIZED,
+      [HttpStatus.FORBIDDEN]: ERROR_CODES.FORBIDDEN,
+      [HttpStatus.NOT_FOUND]: ERROR_CODES.NOT_FOUND,
+      [HttpStatus.CONFLICT]: ERROR_CODES.CONFLICT,
+      [HttpStatus.UNPROCESSABLE_ENTITY]: ERROR_CODES.UNPROCESSABLE_ENTITY,
+      [HttpStatus.TOO_MANY_REQUESTS]: ERROR_CODES.TOO_MANY_REQUESTS,
+      [HttpStatus.INTERNAL_SERVER_ERROR]: ERROR_CODES.INTERNAL_ERROR,
+      [HttpStatus.BAD_GATEWAY]: ERROR_CODES.BAD_GATEWAY,
+      [HttpStatus.SERVICE_UNAVAILABLE]: ERROR_CODES.SERVICE_UNAVAILABLE,
     };
 
     return errorCodes[status] || 'UNKNOWN_ERROR';
@@ -195,16 +195,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   private getErrorName(status: number): string {
     const errorNames: Record<number, string> = {
-      400: 'Bad Request',
-      401: 'Unauthorized',
-      403: 'Forbidden',
-      404: 'Not Found',
-      409: 'Conflict',
-      422: 'Unprocessable Entity',
-      429: 'Too Many Requests',
-      500: 'Internal Server Error',
-      502: 'Bad Gateway',
-      503: 'Service Unavailable',
+      [HttpStatus.BAD_REQUEST]: ERROR_MESSAGES.BAD_REQUEST,
+      [HttpStatus.UNAUTHORIZED]: ERROR_MESSAGES.UNAUTHORIZED,
+      [HttpStatus.FORBIDDEN]: ERROR_MESSAGES.FORBIDDEN,
+      [HttpStatus.NOT_FOUND]: ERROR_MESSAGES.NOT_FOUND,
+      [HttpStatus.CONFLICT]: ERROR_MESSAGES.CONFLICT,
+      [HttpStatus.UNPROCESSABLE_ENTITY]: ERROR_MESSAGES.UNPROCESSABLE_ENTITY,
+      [HttpStatus.TOO_MANY_REQUESTS]: ERROR_MESSAGES.TOO_MANY_REQUESTS,
+      [HttpStatus.INTERNAL_SERVER_ERROR]: ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      [HttpStatus.BAD_GATEWAY]: ERROR_MESSAGES.BAD_GATEWAY,
+      [HttpStatus.SERVICE_UNAVAILABLE]: ERROR_MESSAGES.SERVICE_UNAVAILABLE,
     };
 
     return errorNames[status] || 'Error';

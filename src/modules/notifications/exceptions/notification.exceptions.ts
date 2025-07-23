@@ -20,3 +20,12 @@ export class NotificationDeleteFailedException extends BadRequestException {
     super(`Failed to delete notification "${id}": notification not found`);
   }
 }
+
+export class NotificationOperationFailedException extends BadRequestException {
+  constructor(operation: string, id: string, reason?: string) {
+    const message = reason
+      ? `Failed to ${operation} notification "${id}": ${reason}`
+      : `Failed to ${operation} notification "${id}"`;
+    super(message);
+  }
+}

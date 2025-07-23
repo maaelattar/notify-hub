@@ -1,4 +1,13 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  afterAll,
+} from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -37,7 +46,6 @@ describe('NotificationController (Integration)', () => {
 
     // Create controller instance directly with mocked dependency
     controller = new NotificationController(mockNotificationService);
-
   });
 
   afterEach(() => {

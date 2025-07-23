@@ -67,6 +67,7 @@ import { CacheService } from '../../common/services/cache.service';
     QueueHealthIndicator,
     RedisMetricsService,
     MetricsService,
+    IMetricsService,
   ],
 })
 export class MonitoringModule {}

@@ -90,7 +90,7 @@ export interface NotificationFailedEvent extends DomainEvent {
     error: {
       code: string;
       message: string;
-      details?: any;
+      details?: unknown;
     };
     retryCount: number;
     willRetry: boolean;
@@ -131,8 +131,8 @@ export interface NotificationUpdatedEvent extends DomainEvent {
     updatedFields: string[];
     updatedAt: Date;
     updatedBy?: string;
-    previousValues?: Record<string, any>;
-    newValues?: Record<string, any>;
+    previousValues?: Record<string, unknown>;
+    newValues?: Record<string, unknown>;
   };
 }
 

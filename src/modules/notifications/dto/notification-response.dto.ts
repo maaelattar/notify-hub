@@ -45,7 +45,7 @@ export class NotificationResponseDto {
     example: { templateId: 'welcome-email', userId: '12345' },
     description: 'Additional metadata for the notification',
   })
-  metadata: Record<string, any>;
+  metadata: NotificationMetadata;
 
   @ApiProperty({
     example: 0,

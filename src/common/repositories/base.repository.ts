@@ -117,7 +117,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    */
   async exists(id: string): Promise<boolean> {
     const count = await this.repository.count({
-      where: { id } as any,
+      where: { id } as FindOptionsWhere<T>,
     });
     return count > 0;
   }

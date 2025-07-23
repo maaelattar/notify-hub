@@ -1,20 +1,52 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import {
+  createHash,
+  randomBytes,
+  timingSafeEqual,
+  pbkdf2Sync,
+} from 'crypto';
 
 @Injectable()
 export class CryptoService {
   private readonly logger = new Logger(CryptoService.name);
   private readonly SALT_LENGTH = 32;
   private readonly KEY_LENGTH = 32;
+  private readonly PBKDF2_ITERATIONS = 100000;
+  private readonly PBKDF2_DIGEST = 'sha512';
 
   /**
-   * Hash an API key for secure storage
-   * Uses SHA-256 with a fixed salt for API key hashing
+   * Hash an API key for secure storage using PBKDF2
    */
   hashApiKey(apiKey: string): string {
-    const hash = createHash('sha256');
-    hash.update(apiKey);
-    return hash.digest('hex');
+    const salt = this.generateSalt();
+    const hash = pbkdf2Sync(
+      apiKey,
+      salt,
+      this.PBKDF2_ITERATIONS,
+      64, // 64 bytes for the derived key
+      this.PBKDF2_DIGEST,
+    ).toString('hex');
+    return `${salt}:${hash}`;
+  }
+
+  /**
+   * Verify an API key against a stored hash
+   */
+  verifyApiKey(apiKey: string, storedHash: string): boolean {
+    const [salt, hash] = storedHash.split(':');
+    if (!salt || !hash) {
+      return false;
+    }
+
+    const hashToVerify = pbkdf2Sync(
+      apiKey,
+      salt,
+      this.PBKDF2_ITERATIONS,
+      64,
+      this.PBKDF2_DIGEST,
+    ).toString('hex');
+
+    return this.compareHashes(hash, hashToVerify);
   }
 
   /**
